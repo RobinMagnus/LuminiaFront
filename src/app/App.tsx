@@ -1,5 +1,5 @@
 import React from 'react';
-import { RouterProvider, createBrowserRouter, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, RouterProvider, createBrowserRouter, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Bell, BookOpen, CheckSquare, FileText, Home, User } from 'lucide-react';
 import { LoginScreen } from './components/LoginScreen';
 import {
@@ -25,6 +25,8 @@ import {
   StudentFeedbackView,
   StudentProfile,
 } from './components/StudentScreens';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { BackendRole, roleHomePath } from './services/authService';
 
 const BottomNav = ({ role }: { role: 'teacher' | 'student' }) => {
   const location = useLocation();
@@ -70,6 +72,30 @@ const BottomNav = ({ role }: { role: 'teacher' | 'student' }) => {
   );
 };
 
+const LoadingScreen = () => (
+  <div className="min-h-screen bg-background p-6 flex items-center justify-center text-muted-foreground">
+    Carregando...
+  </div>
+);
+
+const ProtectedRoute = ({ role, children }: { role: BackendRole; children: React.ReactNode }) => {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  if (!user) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (user.role !== role) {
+    return <Navigate to={roleHomePath(user.role)} replace />;
+  }
+
+  return <>{children}</>;
+};
+
 const Layout = ({ role }: { role: 'teacher' | 'student' }) => (
   <div className="min-h-screen bg-background flex flex-col font-sans">
     <main className="flex-1 max-w-md mx-auto w-full p-6 pb-24">
@@ -83,7 +109,11 @@ const router = createBrowserRouter([
   { path: '/', element: <LoginScreen /> },
   {
     path: '/teacher',
-    element: <Layout role="teacher" />,
+    element: (
+      <ProtectedRoute role="professor">
+        <Layout role="teacher" />
+      </ProtectedRoute>
+    ),
     children: [
       { index: true, element: <TeacherDashboard /> },
       { path: 'activities', element: <TeacherActivities /> },
@@ -101,7 +131,11 @@ const router = createBrowserRouter([
   },
   {
     path: '/student',
-    element: <Layout role="student" />,
+    element: (
+      <ProtectedRoute role="aluno">
+        <Layout role="student" />
+      </ProtectedRoute>
+    ),
     children: [
       { index: true, element: <StudentDashboard /> },
       { path: 'contents', element: <StudentContents /> },
@@ -115,5 +149,9 @@ const router = createBrowserRouter([
 ]);
 
 export default function App() {
-  return <RouterProvider router={router} />;
+  return (
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
+  );
 }

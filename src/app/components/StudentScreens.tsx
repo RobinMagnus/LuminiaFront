@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { BookOpen, CalendarDays, CheckCircle2, Clock, FileText, GraduationCap, UserRound } from 'lucide-react';
-import { activities, contents, feedbacks, grades, schedule, student, teachersBySubject } from '../data/mockData';
+import { activities, feedbacks, grades, schedule, student, teachersBySubject } from '../data/mockData';
+import { useAuth } from '../contexts/AuthContext';
+import { usePostContent, usePostContents } from '../hooks/usePostContents';
 import { AIFeedbackCard } from './AIFeedback';
 import { Badge, Button, Card, ProfileHeader, ReadAloudButton, SectionHeader } from './ui';
 
@@ -31,9 +33,11 @@ const QuickCard = ({ icon: Icon, title, subtitle, onClick }: any) => (
 
 export const StudentDashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const firstName = user?.nome.split(' ')[0] || 'Maria';
   return (
     <div className="space-y-6">
-      <SectionHeader title="Olá, Maria" subtitle="Aqui está seu dia de estudos." />
+      <SectionHeader title={`Olá, ${firstName}`} subtitle="Aqui está seu dia de estudos." />
       <div className="grid grid-cols-2 gap-4">
         <QuickCard icon={CalendarDays} title="Próxima aula" subtitle="Biologia, 11:10" onClick={() => navigate('/student/profile')} />
         <QuickCard icon={Clock} title="Pendentes" subtitle="1 atividade" onClick={() => navigate('/student/activities')} />
@@ -54,9 +58,11 @@ export const StudentDashboard = () => {
 
 export const StudentContents = () => {
   const navigate = useNavigate();
+  const { contents, isLoading } = usePostContents();
   return (
     <div className="space-y-6 pb-20">
       <SectionHeader title="Conteúdos" subtitle="Materiais publicados pelos professores." />
+      {isLoading ? <p className="text-sm text-muted-foreground">Carregando conteúdos...</p> : null}
       {contents.map(content => (
         <Card key={content.id}>
           <Badge variant="primary">{content.subject}</Badge>
@@ -74,7 +80,7 @@ export const StudentContents = () => {
 
 export const StudentContentDetail = () => {
   const { id } = useParams();
-  const content = contents.find(item => item.id === id) || contents[0];
+  const { content } = usePostContent(id);
   return (
     <div className="space-y-6 pb-20">
       <header className="flex items-center gap-3"><BackButton to="/student/contents" /><div><h1 className="text-xl font-medium">{content.title}</h1><p className="text-muted-foreground">{content.subject} | {content.teacher}</p></div></header>
@@ -156,9 +162,26 @@ export const StudentFeedbackView = () => {
   );
 };
 
-export const StudentProfile = () => (
+export const StudentProfile = () => {
+  const navigate = useNavigate();
+  const { logout, user } = useAuth();
+  const name = user?.nome || student.name;
+  const initials = name
+    .split(' ')
+    .map(part => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/', { replace: true });
+  };
+
+  return (
   <div className="space-y-6 pb-20">
-    <ProfileHeader initials={student.avatar} name={student.name} subtitle={`Turma ${student.className} | Nascimento: ${student.birthDate}`} />
+    <ProfileHeader initials={initials || student.avatar} name={name} subtitle={user?.email || `Turma ${student.className} | Nascimento: ${student.birthDate}`} />
+    <Button variant="outline" onClick={handleLogout}>Sair</Button>
     <Card><h2 className="font-medium text-lg mb-2">Matérias em andamento</h2><p className="text-muted-foreground">{student.subjects.join(", ")}</p></Card>
     <Card>
       <div className="flex items-center gap-2 mb-4"><FileText size={18} className="text-primary" /><h2 className="font-medium text-lg">Boletim</h2></div>
@@ -188,4 +211,5 @@ export const StudentProfile = () => (
       </div>
     </Card>
   </div>
-);
+  );
+};

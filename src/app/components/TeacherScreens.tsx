@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { BookOpen, CalendarDays, CheckSquare, FileText, PenTool, Sparkles, Users } from 'lucide-react';
-import { activities, attendance, classes, contents, corrections, teacher } from '../data/mockData';
+import { activities, attendance, classes, corrections, teacher } from '../data/mockData';
+import { useAuth } from '../contexts/AuthContext';
+import { usePostContent, usePostContents } from '../hooks/usePostContents';
 import { AITag, Badge, Button, Card, ProfileHeader, ReadAloudButton, SectionHeader } from './ui';
 
 const BackButton = ({ to }: { to?: string }) => {
@@ -25,9 +27,11 @@ const StatCard = ({ icon: Icon, value, label, tone = "primary" }: any) => (
 
 export const TeacherDashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const firstName = user?.nome.split(' ')[0] || 'Professor';
   return (
     <div className="space-y-6">
-      <SectionHeader title="Olá, Prof. Carlos" subtitle="Resumo das suas turmas hoje." />
+      <SectionHeader title={`Olá, Prof. ${firstName}`} subtitle="Resumo das suas turmas hoje." />
       <div className="grid grid-cols-2 gap-4">
         <StatCard icon={FileText} value="28" label="Atividades enviadas" />
         <StatCard icon={CheckSquare} value="17" label="Correções pendentes" tone="coral" />
@@ -138,10 +142,12 @@ const TeacherForm = ({ title, submitLabel, secondaryLabel }: { title: string; su
 
 export const TeacherContents = () => {
   const navigate = useNavigate();
+  const { contents, isLoading } = usePostContents();
   return (
     <div className="space-y-6 pb-20">
       <SectionHeader title="Conteúdos" subtitle="Materiais publicados para os alunos." />
       <Button onClick={() => navigate('/teacher/content/new')}>Novo conteúdo</Button>
+      {isLoading ? <p className="text-sm text-muted-foreground">Carregando conteúdos...</p> : null}
       <div className="space-y-4">
         {contents.map(content => (
           <Card key={content.id}>
@@ -187,7 +193,7 @@ export const TeacherContentForm = () => {
 
 export const TeacherContentDetail = () => {
   const { id } = useParams();
-  const content = contents.find(item => item.id === id) || contents[0];
+  const { content } = usePostContent(id);
   return (
     <div className="space-y-6 pb-20">
       <header className="flex items-center gap-3">
@@ -310,9 +316,24 @@ export const TeacherCorrection = () => {
 
 export const TeacherProfile = () => {
   const navigate = useNavigate();
+  const { logout, user } = useAuth();
+  const name = user?.nome || teacher.name;
+  const initials = name
+    .split(' ')
+    .map(part => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/', { replace: true });
+  };
+
   return (
     <div className="space-y-6 pb-20">
-      <ProfileHeader initials={teacher.avatar} name={teacher.name} subtitle={`Nascimento: ${teacher.birthDate}`} />
+      <ProfileHeader initials={initials || teacher.avatar} name={name} subtitle={user?.email || `Nascimento: ${teacher.birthDate}`} />
+      <Button variant="outline" onClick={handleLogout}>Sair</Button>
       <Card><h2 className="font-medium text-lg mb-2">Matérias que leciona</h2><p className="text-muted-foreground">{teacher.subjects.join(", ")}</p></Card>
       <section className="space-y-4">
         <h2 className="text-lg font-medium">Turmas atribuídas</h2>
