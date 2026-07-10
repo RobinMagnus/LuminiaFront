@@ -1,24 +1,26 @@
 import { useEffect, useState } from 'react';
-import { contents as mockContents } from '../data/mockData';
 import { ContentItem, getPost, listPosts } from '../services/postService';
 
 export function usePostContents() {
-  const [contents, setContents] = useState<ContentItem[]>(mockContents);
+  const [contents, setContents] = useState<ContentItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     let isMounted = true;
 
     setIsLoading(true);
+    setError('');
     listPosts()
       .then(posts => {
-        if (isMounted && posts.length) {
+        if (isMounted) {
           setContents(posts);
         }
       })
-      .catch(() => {
+      .catch(error => {
         if (isMounted) {
-          setContents(mockContents);
+          setError(error instanceof Error ? error.message : 'Não foi possível carregar os conteúdos.');
+          setContents([]);
         }
       })
       .finally(() => {
@@ -32,13 +34,13 @@ export function usePostContents() {
     };
   }, []);
 
-  return { contents, isLoading };
+  return { contents, isLoading, error, setContents, setError };
 }
 
 export function usePostContent(id?: string) {
-  const fallback = mockContents.find(item => item.id === id) || mockContents[0];
-  const [content, setContent] = useState<ContentItem>(fallback);
+  const [content, setContent] = useState<ContentItem | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!id) {
@@ -47,6 +49,7 @@ export function usePostContent(id?: string) {
 
     let isMounted = true;
     setIsLoading(true);
+    setError('');
 
     getPost(id)
       .then(post => {
@@ -54,9 +57,10 @@ export function usePostContent(id?: string) {
           setContent(post);
         }
       })
-      .catch(() => {
+      .catch(error => {
         if (isMounted) {
-          setContent(fallback);
+          setContent(null);
+          setError(error instanceof Error ? error.message : 'Não foi possível carregar o conteúdo.');
         }
       })
       .finally(() => {
@@ -68,7 +72,7 @@ export function usePostContent(id?: string) {
     return () => {
       isMounted = false;
     };
-  }, [fallback, id]);
+  }, [id]);
 
-  return { content, isLoading };
+  return { content, isLoading, error };
 }

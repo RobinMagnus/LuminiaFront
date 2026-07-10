@@ -121,6 +121,7 @@ const router = createBrowserRouter([
       { path: 'create', element: <TeacherCreateActivity /> },
       { path: 'contents', element: <TeacherContents /> },
       { path: 'content/new', element: <TeacherContentForm /> },
+      { path: 'content/:id/edit', element: <TeacherContentForm /> },
       { path: 'content/:id', element: <TeacherContentDetail /> },
       { path: 'corrections', element: <TeacherCorrectionsClasses /> },
       { path: 'corrections/:classId', element: <TeacherCorrectionsList /> },

@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { BookOpen, CalendarDays, CheckCircle2, Clock, FileText, GraduationCap, UserRound } from 'lucide-react';
 import { activities, feedbacks, grades, schedule, student, teachersBySubject } from '../data/mockData';
 import { useAuth } from '../contexts/AuthContext';
 import { usePostContent, usePostContents } from '../hooks/usePostContents';
+import { getMeuPerfilAluno } from '../services/profileService';
+import { Aluno } from '../types/api';
 import { AIFeedbackCard } from './AIFeedback';
 import { ComentariosSection } from './ComentariosSection';
 import { Badge, Button, Card, ProfileHeader, ReadAloudButton, SectionHeader } from './ui';
@@ -59,11 +61,18 @@ export const StudentDashboard = () => {
 
 export const StudentContents = () => {
   const navigate = useNavigate();
-  const { contents, isLoading } = usePostContents();
+  const { contents, isLoading, error } = usePostContents();
   return (
     <div className="space-y-6 pb-20">
       <SectionHeader title="Conteúdos" subtitle="Materiais publicados pelos professores." />
       {isLoading ? <p className="text-sm text-muted-foreground">Carregando conteúdos...</p> : null}
+      {error ? <p className="text-sm text-accent" aria-live="polite">{error}</p> : null}
+      {!isLoading && !error && contents.length === 0 ? (
+        <Card>
+          <p className="font-medium">Nenhum conteúdo disponível.</p>
+          <p className="text-sm text-muted-foreground">Quando professores publicarem posts visíveis para alunos, eles aparecerão aqui.</p>
+        </Card>
+      ) : null}
       {contents.map(content => (
         <Card key={content.id}>
           <Badge variant="primary">{content.subject}</Badge>
@@ -81,7 +90,21 @@ export const StudentContents = () => {
 
 export const StudentContentDetail = () => {
   const { id } = useParams();
-  const { content } = usePostContent(id);
+  const { content, isLoading, error } = usePostContent(id);
+
+  if (isLoading) {
+    return <p className="text-sm text-muted-foreground">Carregando conteúdo...</p>;
+  }
+
+  if (error || !content) {
+    return (
+      <div className="space-y-4">
+        <BackButton to="/student/contents" />
+        <p className="text-sm text-accent">{error || 'Conteúdo não encontrado.'}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 pb-20">
       <header className="flex items-center gap-3"><BackButton to="/student/contents" /><div><h1 className="text-xl font-medium">{content.title}</h1><p className="text-muted-foreground">{content.subject} | {content.teacher}</p></div></header>
@@ -167,7 +190,10 @@ export const StudentFeedbackView = () => {
 export const StudentProfile = () => {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
-  const name = user?.nome || student.name;
+  const [profile, setProfile] = useState<Aluno | null>(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [profileError, setProfileError] = useState('');
+  const name = profile?.nome || user?.nome || student.name;
   const initials = name
     .split(' ')
     .map(part => part[0])
@@ -180,13 +206,47 @@ export const StudentProfile = () => {
     navigate('/', { replace: true });
   };
 
+  useEffect(() => {
+    let isMounted = true;
+
+    getMeuPerfilAluno()
+      .then(data => {
+        if (isMounted) {
+          setProfile(data);
+        }
+      })
+      .catch(error => {
+        if (isMounted) {
+          setProfileError(error instanceof Error ? error.message : 'Não foi possível carregar o perfil.');
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoadingProfile(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return (
   <div className="space-y-6 pb-20">
     <ProfileHeader initials={initials || student.avatar} name={name} subtitle={user?.email || `Turma ${student.className} | Nascimento: ${student.birthDate}`} />
     <Button variant="outline" onClick={handleLogout}>Sair</Button>
-    <Card><h2 className="font-medium text-lg mb-2">Matérias em andamento</h2><p className="text-muted-foreground">{student.subjects.join(", ")}</p></Card>
+    {isLoadingProfile ? <p className="text-sm text-muted-foreground">Carregando perfil...</p> : null}
+    {profileError ? <p className="text-sm text-accent">{profileError}</p> : null}
+    <Card>
+      <h2 className="font-medium text-lg mb-2">Dados do aluno</h2>
+      <p className="text-muted-foreground">Matrícula: {profile?.matricula || 'Não informada'}</p>
+      <p className="text-muted-foreground">Turma: {profile?.turma || 'Não informada'}</p>
+      <p className="text-muted-foreground">Nascimento: {profile?.dataNascimento ? new Date(profile.dataNascimento).toLocaleDateString('pt-BR') : 'Não informado'}</p>
+    </Card>
+    <Card><h2 className="font-medium text-lg mb-2">Matérias em andamento</h2><Badge variant="warning">Demonstração visual — integração pendente</Badge><p className="text-muted-foreground mt-3">{student.subjects.join(", ")}</p></Card>
     <Card>
       <div className="flex items-center gap-2 mb-4"><FileText size={18} className="text-primary" /><h2 className="font-medium text-lg">Boletim</h2></div>
+      <Badge variant="warning">Demonstração visual — integração pendente</Badge>
       <div className="space-y-3">
         {grades.map(item => (
           <div key={item.subject} className="rounded-xl bg-input-background p-3">
@@ -199,6 +259,7 @@ export const StudentProfile = () => {
     </Card>
     <Card>
       <div className="flex items-center gap-2 mb-4"><CalendarDays size={18} className="text-primary" /><h2 className="font-medium text-lg">Cronograma do dia</h2></div>
+      <Badge variant="warning">Demonstração visual — integração pendente</Badge>
       <div className="space-y-3">{schedule.map(item => <div key={item.time} className="rounded-xl bg-input-background p-3"><strong>{item.time} | {item.subject}</strong><p className="text-sm text-muted-foreground">{item.teacher} | {item.room} | {item.status}</p></div>)}</div>
     </Card>
     <Card>

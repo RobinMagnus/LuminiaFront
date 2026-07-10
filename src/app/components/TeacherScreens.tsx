@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { FormEvent, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { BookOpen, CalendarDays, CheckSquare, FileText, PenTool, Sparkles, Users } from 'lucide-react';
 import { activities, attendance, classes, corrections, teacher } from '../data/mockData';
 import { useAuth } from '../contexts/AuthContext';
 import { usePostContent, usePostContents } from '../hooks/usePostContents';
+import { createPost, deletePost, updatePost } from '../services/postService';
+import { getMeuPerfilProfessor } from '../services/profileService';
+import { Professor } from '../types/api';
 import { ComentariosSection } from './ComentariosSection';
 import { AITag, Badge, Button, Card, ProfileHeader, ReadAloudButton, SectionHeader } from './ui';
 
@@ -143,12 +146,46 @@ const TeacherForm = ({ title, submitLabel, secondaryLabel }: { title: string; su
 
 export const TeacherContents = () => {
   const navigate = useNavigate();
-  const { contents, isLoading } = usePostContents();
+  const { user } = useAuth();
+  const { contents, isLoading, error, setContents, setError } = usePostContents();
+  const [success, setSuccess] = useState('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDelete = async (id: string) => {
+    const confirmed = window.confirm('Excluir este conteúdo? Esta ação também remove os comentários relacionados.');
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingId(id);
+    setError('');
+    setSuccess('');
+
+    try {
+      const response = await deletePost(id);
+      setContents(items => items.filter(item => item.id !== id));
+      setSuccess(response.mensagem);
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'Não foi possível excluir o conteúdo.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <div className="space-y-6 pb-20">
       <SectionHeader title="Conteúdos" subtitle="Materiais publicados para os alunos." />
       <Button onClick={() => navigate('/teacher/content/new')}>Novo conteúdo</Button>
       {isLoading ? <p className="text-sm text-muted-foreground">Carregando conteúdos...</p> : null}
+      {error ? <p className="text-sm text-accent" aria-live="polite">{error}</p> : null}
+      {success ? <p className="text-sm text-primary" aria-live="polite">{success}</p> : null}
+      {!isLoading && !error && contents.length === 0 ? (
+        <Card>
+          <p className="font-medium">Nenhum conteúdo publicado ainda.</p>
+          <p className="text-sm text-muted-foreground">Crie o primeiro post para que alunos possam visualizar.</p>
+        </Card>
+      ) : null}
       <div className="space-y-4">
         {contents.map(content => (
           <Card key={content.id}>
@@ -157,6 +194,14 @@ export const TeacherContents = () => {
             <p className="text-sm text-muted-foreground mb-4">{content.className} | Publicado em {content.publishedAt}</p>
             <div className="flex gap-2 flex-wrap">
               <Button variant="outline" className="!w-auto !py-2 !px-3" onClick={() => navigate(`/teacher/content/${content.id}`)}>Ver conteúdo</Button>
+              {content.authorId === user?.id ? (
+                <>
+                  <Button variant="outline" className="!w-auto !py-2 !px-3" onClick={() => navigate(`/teacher/content/${content.id}/edit`)}>Editar</Button>
+                  <Button variant="ghost" disabled={deletingId === content.id} className="!w-auto !py-2 !px-3" onClick={() => handleDelete(content.id)}>
+                    {deletingId === content.id ? 'Excluindo...' : 'Excluir'}
+                  </Button>
+                </>
+              ) : null}
               <ReadAloudButton label="Ouvir texto" />
             </div>
           </Card>
@@ -168,33 +213,125 @@ export const TeacherContents = () => {
 
 export const TeacherContentForm = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const isEditing = Boolean(id);
+  const { content, isLoading, error: loadError } = usePostContent(id);
+  const [titulo, setTitulo] = useState('');
+  const [disciplina, setDisciplina] = useState('');
+  const [conteudo, setConteudo] = useState('');
+  const [tags, setTags] = useState('');
+  const [visivelPara, setVisivelPara] = useState<'todos' | 'alunos' | 'professores'>('todos');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (content && isEditing) {
+      setTitulo(content.title);
+      setDisciplina(content.subject === 'Geral' ? '' : content.subject);
+      setConteudo(content.text);
+      setTags(content.tags.join(', '));
+      setVisivelPara(content.visibility);
+    }
+  }, [content, isEditing]);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError('');
+    setSuccess('');
+
+    if (!titulo.trim() || !conteudo.trim()) {
+      setError('Título e texto do conteúdo são obrigatórios.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const payload = {
+        titulo: titulo.trim(),
+        conteudo: conteudo.trim(),
+        disciplina: disciplina.trim() || undefined,
+        tags: tags.split(',').map(tag => tag.trim()).filter(Boolean),
+        visivelPara,
+      };
+
+      const response = isEditing && id
+        ? await updatePost(id, payload)
+        : await createPost(payload);
+
+      setSuccess(response.mensagem);
+      navigate('/teacher/contents');
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : 'Não foi possível salvar o conteúdo.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
-    <div className="space-y-6 pb-20">
+    <form onSubmit={handleSubmit} className="space-y-6 pb-20">
       <header className="flex items-center gap-3">
         <BackButton to="/teacher/contents" />
         <div>
-          <h1 className="text-xl font-medium text-foreground">Novo conteúdo</h1>
+          <h1 className="text-xl font-medium text-foreground">{isEditing ? 'Editar conteúdo' : 'Novo conteúdo'}</h1>
           <p className="text-base text-muted-foreground">Publique um material de leitura para a turma.</p>
         </div>
       </header>
-      {["Título", "Matéria", "Turma"].map(label => (
-        <label key={label} className="block space-y-2">
-          <span>{label}</span>
-          <input className="w-full bg-card border border-border rounded-xl p-4 text-base focus:outline-none focus:ring-2 focus:ring-primary" placeholder={label} />
-        </label>
-      ))}
+      {isLoading ? <p className="text-sm text-muted-foreground">Carregando conteúdo...</p> : null}
+      {loadError ? <p className="text-sm text-accent">{loadError}</p> : null}
+      {error ? <p className="text-sm text-accent" aria-live="polite">{error}</p> : null}
+      {success ? <p className="text-sm text-primary" aria-live="polite">{success}</p> : null}
+      <label className="block space-y-2">
+        <span>Título</span>
+        <input value={titulo} onChange={event => setTitulo(event.target.value)} className="w-full bg-card border border-border rounded-xl p-4 text-base focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Título" required />
+      </label>
+      <label className="block space-y-2">
+        <span>Matéria</span>
+        <input value={disciplina} onChange={event => setDisciplina(event.target.value)} className="w-full bg-card border border-border rounded-xl p-4 text-base focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Matéria" />
+      </label>
+      <label className="block space-y-2">
+        <span>Visibilidade</span>
+        <select value={visivelPara} onChange={event => setVisivelPara(event.target.value as 'todos' | 'alunos' | 'professores')} className="w-full bg-card border border-border rounded-xl p-4 text-base focus:outline-none focus:ring-2 focus:ring-primary">
+          <option value="todos">Todos</option>
+          <option value="alunos">Alunos</option>
+          <option value="professores">Professores</option>
+        </select>
+      </label>
+      <label className="block space-y-2">
+        <span>Tags</span>
+        <input value={tags} onChange={event => setTags(event.target.value)} className="w-full bg-card border border-border rounded-xl p-4 text-base focus:outline-none focus:ring-2 focus:ring-primary" placeholder="matematica, atividade" />
+      </label>
       <label className="block space-y-2">
         <span>Texto do conteúdo</span>
-        <textarea className="w-full bg-card border border-border rounded-xl p-4 min-h-[220px] focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Escreva o conteúdo que será publicado para os alunos." />
+        <textarea value={conteudo} onChange={event => setConteudo(event.target.value)} className="w-full bg-card border border-border rounded-xl p-4 min-h-[220px] focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Escreva o conteúdo que será publicado para os alunos." required />
       </label>
-      <Button onClick={() => navigate('/teacher/contents')}>Publicar conteúdo</Button>
-    </div>
+      <Button type="submit" disabled={isSubmitting || Boolean(loadError)}>
+        {isSubmitting ? 'Salvando...' : isEditing ? 'Salvar alterações' : 'Publicar conteúdo'}
+      </Button>
+    </form>
   );
 };
 
 export const TeacherContentDetail = () => {
   const { id } = useParams();
-  const { content } = usePostContent(id);
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { content, isLoading, error } = usePostContent(id);
+
+  if (isLoading) {
+    return <p className="text-sm text-muted-foreground">Carregando conteúdo...</p>;
+  }
+
+  if (error || !content) {
+    return (
+      <div className="space-y-4">
+        <BackButton to="/teacher/contents" />
+        <p className="text-sm text-accent">{error || 'Conteúdo não encontrado.'}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 pb-20">
       <header className="flex items-center gap-3">
@@ -204,6 +341,9 @@ export const TeacherContentDetail = () => {
           <p className="text-base text-muted-foreground">{content.subject} | {content.className}</p>
         </div>
       </header>
+      {content.authorId === user?.id ? (
+        <Button variant="outline" onClick={() => navigate(`/teacher/content/${content.id}/edit`)}>Editar conteúdo</Button>
+      ) : null}
       <Card>
         <div className="flex justify-between items-start gap-3 mb-4">
           <h2 className="font-medium text-lg">Texto do conteúdo</h2>
@@ -319,7 +459,10 @@ export const TeacherCorrection = () => {
 export const TeacherProfile = () => {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
-  const name = user?.nome || teacher.name;
+  const [profile, setProfile] = useState<Professor | null>(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [profileError, setProfileError] = useState('');
+  const name = profile?.nome || user?.nome || teacher.name;
   const initials = name
     .split(' ')
     .map(part => part[0])
@@ -332,13 +475,46 @@ export const TeacherProfile = () => {
     navigate('/', { replace: true });
   };
 
+  useEffect(() => {
+    let isMounted = true;
+
+    getMeuPerfilProfessor()
+      .then(data => {
+        if (isMounted) {
+          setProfile(data);
+        }
+      })
+      .catch(error => {
+        if (isMounted) {
+          setProfileError(error instanceof Error ? error.message : 'Não foi possível carregar o perfil.');
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoadingProfile(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return (
     <div className="space-y-6 pb-20">
       <ProfileHeader initials={initials || teacher.avatar} name={name} subtitle={user?.email || `Nascimento: ${teacher.birthDate}`} />
       <Button variant="outline" onClick={handleLogout}>Sair</Button>
-      <Card><h2 className="font-medium text-lg mb-2">Matérias que leciona</h2><p className="text-muted-foreground">{teacher.subjects.join(", ")}</p></Card>
+      {isLoadingProfile ? <p className="text-sm text-muted-foreground">Carregando perfil...</p> : null}
+      {profileError ? <p className="text-sm text-accent">{profileError}</p> : null}
+      <Card>
+        <h2 className="font-medium text-lg mb-2">Dados do professor</h2>
+        <p className="text-muted-foreground">Nascimento: {profile?.dataNascimento ? new Date(profile.dataNascimento).toLocaleDateString('pt-BR') : 'Não informado'}</p>
+        <p className="text-muted-foreground">Matérias: {profile?.materias?.length ? profile.materias.join(', ') : 'Não informadas'}</p>
+        <p className="text-muted-foreground">Turmas: {profile?.turmas?.length ? profile.turmas.join(', ') : 'Não informadas'}</p>
+      </Card>
       <section className="space-y-4">
         <h2 className="text-lg font-medium">Turmas atribuídas</h2>
+        <Badge variant="warning">Demonstração visual — integração pendente</Badge>
         {classes.map(item => (
           <Card key={item.id}>
             <h3 className="font-medium">{item.name}</h3>

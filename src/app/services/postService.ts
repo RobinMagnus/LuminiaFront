@@ -1,19 +1,9 @@
 import { apiFetch } from './api';
-
-type BackendPost = {
-  _id: string;
-  titulo: string;
-  conteudo: string;
-  disciplina?: string;
-  autor?: {
-    nome?: string;
-  };
-  tags?: string[];
-  createdAt?: string;
-};
+import { Post } from '../types/api';
 
 export type ContentItem = {
   id: string;
+  authorId?: string;
   title: string;
   subject: string;
   className: string;
@@ -21,6 +11,21 @@ export type ContentItem = {
   publishedAt: string;
   text: string;
   related: string[];
+  visibility: 'todos' | 'alunos' | 'professores';
+  tags: string[];
+};
+
+export type PostPayload = {
+  titulo: string;
+  conteudo: string;
+  disciplina?: string;
+  tags?: string[];
+  visivelPara?: 'todos' | 'alunos' | 'professores';
+};
+
+type PostMutationResponse = {
+  mensagem: string;
+  post: Post;
 };
 
 function formatDate(value?: string) {
@@ -34,9 +39,10 @@ function formatDate(value?: string) {
   }).format(new Date(value));
 }
 
-function mapPost(post: BackendPost): ContentItem {
+function mapPost(post: Post): ContentItem {
   return {
     id: post._id,
+    authorId: post.autor?._id,
     title: post.titulo,
     subject: post.disciplina || 'Geral',
     className: 'Todas as turmas',
@@ -44,15 +50,47 @@ function mapPost(post: BackendPost): ContentItem {
     publishedAt: formatDate(post.createdAt),
     text: post.conteudo,
     related: post.tags?.length ? post.tags : ['Material complementar'],
+    visibility: post.visivelPara || 'todos',
+    tags: post.tags || [],
   };
 }
 
 export async function listPosts() {
-  const posts = await apiFetch<BackendPost[]>('/posts');
+  const posts = await apiFetch<Post[]>('/posts');
   return posts.map(mapPost);
 }
 
 export async function getPost(id: string) {
-  const post = await apiFetch<BackendPost>(`/posts/${id}`);
+  const post = await apiFetch<Post>(`/posts/${id}`);
   return mapPost(post);
+}
+
+export async function createPost(payload: PostPayload) {
+  const response = await apiFetch<PostMutationResponse>('/posts', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+  return {
+    mensagem: response.mensagem,
+    post: mapPost(response.post),
+  };
+}
+
+export async function updatePost(id: string, payload: PostPayload) {
+  const response = await apiFetch<PostMutationResponse>(`/posts/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+
+  return {
+    mensagem: response.mensagem,
+    post: mapPost(response.post),
+  };
+}
+
+export function deletePost(id: string) {
+  return apiFetch<{ mensagem: string }>(`/posts/${id}`, {
+    method: 'DELETE',
+  });
 }

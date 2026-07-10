@@ -1,20 +1,10 @@
 import { apiFetch } from './api';
+import { LoginResponse, Role, Usuario } from '../types/api';
 
-export type BackendRole = 'professor' | 'aluno';
+export type BackendRole = Role;
 export type FrontendRole = 'teacher' | 'student';
 
-export type AuthUser = {
-  id: string;
-  nome: string;
-  email: string;
-  role: BackendRole;
-  ativo: boolean;
-};
-
-type AuthResponse = {
-  token: string;
-  user: AuthUser;
-};
+export type AuthUser = Usuario;
 
 type MeResponse = {
   user: AuthUser;
@@ -29,7 +19,7 @@ export function roleHomePath(role: BackendRole) {
 }
 
 export function login(email: string, senha: string) {
-  return apiFetch<AuthResponse>('/auth/login', {
+  return apiFetch<LoginResponse>('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, senha }),
   });
