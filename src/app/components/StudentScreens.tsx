@@ -4,10 +4,12 @@ import { BookOpen, CalendarDays, CheckCircle2, Clock, FileText, GraduationCap, U
 import { activities, feedbacks, grades, schedule, student, teachersBySubject } from '../data/mockData';
 import { useAuth } from '../contexts/AuthContext';
 import { usePostContent, usePostContents } from '../hooks/usePostContents';
+import { getFriendlyErrorMessage } from '../services/api';
 import { getMeuPerfilAluno } from '../services/profileService';
 import { Aluno } from '../types/api';
 import { AIFeedbackCard } from './AIFeedback';
 import { ComentariosSection } from './ComentariosSection';
+import { EmptyState, ErrorState, LoadingState } from './feedback';
 import { Badge, Button, Card, ProfileHeader, ReadAloudButton, SectionHeader } from './ui';
 
 const BackButton = ({ to }: { to?: string }) => {
@@ -61,17 +63,17 @@ export const StudentDashboard = () => {
 
 export const StudentContents = () => {
   const navigate = useNavigate();
-  const { contents, isLoading, error } = usePostContents();
+  const { contents, isLoading, error, reload } = usePostContents();
   return (
     <div className="space-y-6 pb-20">
       <SectionHeader title="Conteúdos" subtitle="Materiais publicados pelos professores." />
-      {isLoading ? <p className="text-sm text-muted-foreground">Carregando conteúdos...</p> : null}
-      {error ? <p className="text-sm text-accent" aria-live="polite">{error}</p> : null}
+      {isLoading ? <LoadingState message="Carregando conteúdos..." /> : null}
+      {error ? <ErrorState title="Não foi possível carregar os conteúdos" message={error} onRetry={reload} compact /> : null}
       {!isLoading && !error && contents.length === 0 ? (
-        <Card>
-          <p className="font-medium">Nenhum conteúdo disponível.</p>
-          <p className="text-sm text-muted-foreground">Quando professores publicarem posts visíveis para alunos, eles aparecerão aqui.</p>
-        </Card>
+        <EmptyState
+          title="Nenhum conteúdo disponível."
+          message="Quando professores publicarem posts visíveis para alunos, eles aparecerão aqui."
+        />
       ) : null}
       {contents.map(content => (
         <Card key={content.id}>
@@ -90,17 +92,22 @@ export const StudentContents = () => {
 
 export const StudentContentDetail = () => {
   const { id } = useParams();
-  const { content, isLoading, error } = usePostContent(id);
+  const { content, isLoading, error, reload } = usePostContent(id);
 
   if (isLoading) {
-    return <p className="text-sm text-muted-foreground">Carregando conteúdo...</p>;
+    return <LoadingState message="Carregando conteúdo..." />;
   }
 
   if (error || !content) {
     return (
       <div className="space-y-4">
         <BackButton to="/student/contents" />
-        <p className="text-sm text-accent">{error || 'Conteúdo não encontrado.'}</p>
+        <ErrorState
+          title="Não foi possível abrir o conteúdo"
+          message={error || 'Conteúdo não encontrado.'}
+          onRetry={error ? reload : undefined}
+          compact
+        />
       </div>
     );
   }
@@ -217,7 +224,7 @@ export const StudentProfile = () => {
       })
       .catch(error => {
         if (isMounted) {
-          setProfileError(error instanceof Error ? error.message : 'Não foi possível carregar o perfil.');
+          setProfileError(getFriendlyErrorMessage(error));
         }
       })
       .finally(() => {
@@ -235,8 +242,8 @@ export const StudentProfile = () => {
   <div className="space-y-6 pb-20">
     <ProfileHeader initials={initials || student.avatar} name={name} subtitle={user?.email || `Turma ${student.className} | Nascimento: ${student.birthDate}`} />
     <Button variant="outline" onClick={handleLogout}>Sair</Button>
-    {isLoadingProfile ? <p className="text-sm text-muted-foreground">Carregando perfil...</p> : null}
-    {profileError ? <p className="text-sm text-accent">{profileError}</p> : null}
+    {isLoadingProfile ? <LoadingState message="Carregando perfil..." /> : null}
+    {profileError ? <ErrorState title="Não foi possível carregar o perfil" message={profileError} compact /> : null}
     <Card>
       <h2 className="font-medium text-lg mb-2">Dados do aluno</h2>
       <p className="text-muted-foreground">Matrícula: {profile?.matricula || 'Não informada'}</p>

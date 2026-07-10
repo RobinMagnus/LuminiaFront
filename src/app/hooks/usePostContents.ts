@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { getFriendlyErrorMessage } from '../services/api';
 import { ContentItem, getPost, listPosts } from '../services/postService';
 
 export function usePostContents() {
@@ -6,7 +7,7 @@ export function usePostContents() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
+  const loadPosts = useCallback(() => {
     let isMounted = true;
 
     setIsLoading(true);
@@ -19,7 +20,7 @@ export function usePostContents() {
       })
       .catch(error => {
         if (isMounted) {
-          setError(error instanceof Error ? error.message : 'Não foi possível carregar os conteúdos.');
+          setError(getFriendlyErrorMessage(error));
           setContents([]);
         }
       })
@@ -34,7 +35,9 @@ export function usePostContents() {
     };
   }, []);
 
-  return { contents, isLoading, error, setContents, setError };
+  useEffect(() => loadPosts(), [loadPosts]);
+
+  return { contents, isLoading, error, setContents, setError, reload: loadPosts };
 }
 
 export function usePostContent(id?: string) {
@@ -42,7 +45,7 @@ export function usePostContent(id?: string) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
+  const loadPost = useCallback(() => {
     if (!id) {
       return;
     }
@@ -60,7 +63,7 @@ export function usePostContent(id?: string) {
       .catch(error => {
         if (isMounted) {
           setContent(null);
-          setError(error instanceof Error ? error.message : 'Não foi possível carregar o conteúdo.');
+          setError(getFriendlyErrorMessage(error));
         }
       })
       .finally(() => {
@@ -74,5 +77,7 @@ export function usePostContent(id?: string) {
     };
   }, [id]);
 
-  return { content, isLoading, error };
+  useEffect(() => loadPost(), [loadPost]);
+
+  return { content, isLoading, error, reload: loadPost };
 }

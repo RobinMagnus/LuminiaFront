@@ -25,6 +25,7 @@ import {
   StudentFeedbackView,
   StudentProfile,
 } from './components/StudentScreens';
+import { ErrorState, LoadingState } from './components/feedback';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { BackendRole, roleHomePath } from './services/authService';
 
@@ -72,14 +73,15 @@ const BottomNav = ({ role }: { role: 'teacher' | 'student' }) => {
   );
 };
 
-const LoadingScreen = () => (
+export const LoadingScreen = () => (
   <div className="min-h-screen bg-background p-6 flex items-center justify-center text-muted-foreground">
-    Carregando...
+    <LoadingState message="Carregando sessão..." />
   </div>
 );
 
-const ProtectedRoute = ({ role, children }: { role: BackendRole; children: React.ReactNode }) => {
+export const ProtectedRoute = ({ role, children }: { role: BackendRole; children: React.ReactNode }) => {
   const { user, isLoading } = useAuth();
+  const navigate = useNavigate();
 
   if (isLoading) {
     return <LoadingScreen />;
@@ -90,7 +92,21 @@ const ProtectedRoute = ({ role, children }: { role: BackendRole; children: React
   }
 
   if (user.role !== role) {
-    return <Navigate to={roleHomePath(user.role)} replace />;
+    return (
+      <div className="min-h-screen bg-background p-6 flex items-center justify-center">
+        <div className="w-full max-w-md">
+          <ErrorState
+            title="Acesso negado"
+            message="Você não tem permissão para acessar esta área."
+            status={403}
+            onBack={() => navigate(roleHomePath(user.role), { replace: true })}
+            backLabel="Ir para minha área"
+            page
+            focusOnMount
+          />
+        </div>
+      </div>
+    );
   }
 
   return <>{children}</>;

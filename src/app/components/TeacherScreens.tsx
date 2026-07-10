@@ -4,10 +4,12 @@ import { BookOpen, CalendarDays, CheckSquare, FileText, PenTool, Sparkles, Users
 import { activities, attendance, classes, corrections, teacher } from '../data/mockData';
 import { useAuth } from '../contexts/AuthContext';
 import { usePostContent, usePostContents } from '../hooks/usePostContents';
+import { getFriendlyErrorMessage } from '../services/api';
 import { createPost, deletePost, updatePost } from '../services/postService';
 import { getMeuPerfilProfessor } from '../services/profileService';
 import { Professor } from '../types/api';
 import { ComentariosSection } from './ComentariosSection';
+import { EmptyState, ErrorState, FeedbackMessage, LoadingState } from './feedback';
 import { AITag, Badge, Button, Card, ProfileHeader, ReadAloudButton, SectionHeader } from './ui';
 
 const BackButton = ({ to }: { to?: string }) => {
@@ -147,7 +149,7 @@ const TeacherForm = ({ title, submitLabel, secondaryLabel }: { title: string; su
 export const TeacherContents = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { contents, isLoading, error, setContents, setError } = usePostContents();
+  const { contents, isLoading, error, setContents, setError, reload } = usePostContents();
   const [success, setSuccess] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -167,7 +169,7 @@ export const TeacherContents = () => {
       setContents(items => items.filter(item => item.id !== id));
       setSuccess(response.mensagem);
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : 'Não foi possível excluir o conteúdo.');
+      setError(getFriendlyErrorMessage(deleteError));
     } finally {
       setDeletingId(null);
     }
@@ -177,14 +179,14 @@ export const TeacherContents = () => {
     <div className="space-y-6 pb-20">
       <SectionHeader title="Conteúdos" subtitle="Materiais publicados para os alunos." />
       <Button onClick={() => navigate('/teacher/content/new')}>Novo conteúdo</Button>
-      {isLoading ? <p className="text-sm text-muted-foreground">Carregando conteúdos...</p> : null}
-      {error ? <p className="text-sm text-accent" aria-live="polite">{error}</p> : null}
-      {success ? <p className="text-sm text-primary" aria-live="polite">{success}</p> : null}
+      {isLoading ? <LoadingState message="Carregando conteúdos..." /> : null}
+      {error ? <ErrorState title="Não foi possível carregar os conteúdos" message={error} onRetry={reload} compact /> : null}
+      {success ? <FeedbackMessage type="success" message={success} compact onClose={() => setSuccess('')} /> : null}
       {!isLoading && !error && contents.length === 0 ? (
-        <Card>
-          <p className="font-medium">Nenhum conteúdo publicado ainda.</p>
-          <p className="text-sm text-muted-foreground">Crie o primeiro post para que alunos possam visualizar.</p>
-        </Card>
+        <EmptyState
+          title="Nenhum conteúdo publicado ainda."
+          message="Crie o primeiro post para que alunos possam visualizar."
+        />
       ) : null}
       <div className="space-y-4">
         {contents.map(content => (
@@ -215,7 +217,7 @@ export const TeacherContentForm = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditing = Boolean(id);
-  const { content, isLoading, error: loadError } = usePostContent(id);
+  const { content, isLoading, error: loadError, reload } = usePostContent(id);
   const [titulo, setTitulo] = useState('');
   const [disciplina, setDisciplina] = useState('');
   const [conteudo, setConteudo] = useState('');
@@ -263,14 +265,14 @@ export const TeacherContentForm = () => {
       setSuccess(response.mensagem);
       navigate('/teacher/contents');
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Não foi possível salvar o conteúdo.');
+      setError(getFriendlyErrorMessage(submitError));
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 pb-20">
+    <form onSubmit={handleSubmit} className="space-y-6 pb-20" noValidate>
       <header className="flex items-center gap-3">
         <BackButton to="/teacher/contents" />
         <div>
@@ -278,10 +280,10 @@ export const TeacherContentForm = () => {
           <p className="text-base text-muted-foreground">Publique um material de leitura para a turma.</p>
         </div>
       </header>
-      {isLoading ? <p className="text-sm text-muted-foreground">Carregando conteúdo...</p> : null}
-      {loadError ? <p className="text-sm text-accent">{loadError}</p> : null}
-      {error ? <p className="text-sm text-accent" aria-live="polite">{error}</p> : null}
-      {success ? <p className="text-sm text-primary" aria-live="polite">{success}</p> : null}
+      {isLoading ? <LoadingState message="Carregando conteúdo..." /> : null}
+      {loadError ? <ErrorState title="Não foi possível carregar o conteúdo" message={loadError} onRetry={reload} compact /> : null}
+      {error ? <FeedbackMessage type="error" message={error} compact /> : null}
+      {success ? <FeedbackMessage type="success" message={success} compact /> : null}
       <label className="block space-y-2">
         <span>Título</span>
         <input value={titulo} onChange={event => setTitulo(event.target.value)} className="w-full bg-card border border-border rounded-xl p-4 text-base focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Título" required />
@@ -317,17 +319,22 @@ export const TeacherContentDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { content, isLoading, error } = usePostContent(id);
+  const { content, isLoading, error, reload } = usePostContent(id);
 
   if (isLoading) {
-    return <p className="text-sm text-muted-foreground">Carregando conteúdo...</p>;
+    return <LoadingState message="Carregando conteúdo..." />;
   }
 
   if (error || !content) {
     return (
       <div className="space-y-4">
         <BackButton to="/teacher/contents" />
-        <p className="text-sm text-accent">{error || 'Conteúdo não encontrado.'}</p>
+        <ErrorState
+          title="Não foi possível abrir o conteúdo"
+          message={error || 'Conteúdo não encontrado.'}
+          onRetry={error ? reload : undefined}
+          compact
+        />
       </div>
     );
   }
@@ -486,7 +493,7 @@ export const TeacherProfile = () => {
       })
       .catch(error => {
         if (isMounted) {
-          setProfileError(error instanceof Error ? error.message : 'Não foi possível carregar o perfil.');
+          setProfileError(getFriendlyErrorMessage(error));
         }
       })
       .finally(() => {
@@ -504,8 +511,8 @@ export const TeacherProfile = () => {
     <div className="space-y-6 pb-20">
       <ProfileHeader initials={initials || teacher.avatar} name={name} subtitle={user?.email || `Nascimento: ${teacher.birthDate}`} />
       <Button variant="outline" onClick={handleLogout}>Sair</Button>
-      {isLoadingProfile ? <p className="text-sm text-muted-foreground">Carregando perfil...</p> : null}
-      {profileError ? <p className="text-sm text-accent">{profileError}</p> : null}
+      {isLoadingProfile ? <LoadingState message="Carregando perfil..." /> : null}
+      {profileError ? <ErrorState title="Não foi possível carregar o perfil" message={profileError} compact /> : null}
       <Card>
         <h2 className="font-medium text-lg mb-2">Dados do professor</h2>
         <p className="text-muted-foreground">Nascimento: {profile?.dataNascimento ? new Date(profile.dataNascimento).toLocaleDateString('pt-BR') : 'Não informado'}</p>

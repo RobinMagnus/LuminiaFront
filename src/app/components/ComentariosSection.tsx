@@ -1,6 +1,6 @@
 import React, { FormEvent, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ApiError } from '../services/api';
+import { ApiError, getFriendlyErrorMessage } from '../services/api';
 import {
   Comentario,
   atualizarComentario,
@@ -9,6 +9,7 @@ import {
   listarComentarios,
 } from '../services/comentarioService';
 import { useAuth } from '../contexts/AuthContext';
+import { ErrorState, FeedbackMessage, LoadingState } from './feedback';
 import { Badge, Button, Card } from './ui';
 
 const LIMITE_COMENTARIO = 1000;
@@ -21,26 +22,6 @@ function formatarData(data: string) {
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(data));
-}
-
-function mensagemErro(error: unknown) {
-  if (error instanceof ApiError) {
-    if (error.status === 401) {
-      return 'Sua sessão expirou. Faça login novamente.';
-    }
-
-    if (error.status === 403) {
-      return 'Você não possui permissão para esta ação.';
-    }
-
-    if (error.status === 404) {
-      return 'O recurso solicitado não existe ou foi removido.';
-    }
-
-    return error.message;
-  }
-
-  return 'Não foi possível conectar à API. Verifique sua conexão e tente novamente.';
 }
 
 export const ComentariosSection = ({ postId }: { postId: string }) => {
@@ -57,8 +38,7 @@ export const ComentariosSection = ({ postId }: { postId: string }) => {
   const [acaoEmAndamento, setAcaoEmAndamento] = useState<string | null>(null);
 
   const tratarErro = (error: unknown) => {
-    const texto = mensagemErro(error);
-    setErro(texto);
+    setErro(getFriendlyErrorMessage(error));
 
     if (error instanceof ApiError && error.status === 401) {
       logout();
@@ -215,9 +195,9 @@ export const ComentariosSection = ({ postId }: { postId: string }) => {
       </form>
 
       <div id="mensagem-comentarios" aria-live="polite" className="space-y-2 mb-4">
-        {erro ? <p className="text-sm text-accent">{erro}</p> : null}
-        {sucesso ? <p className="text-sm text-primary">{sucesso}</p> : null}
-        {isLoading ? <p className="text-sm text-muted-foreground">Carregando comentários...</p> : null}
+        {erro ? <ErrorState title="Não foi possível carregar os comentários" message={erro} compact /> : null}
+        {sucesso ? <FeedbackMessage type="success" message={sucesso} compact onClose={() => setSucesso('')} /> : null}
+        {isLoading ? <LoadingState message="Carregando comentários..." /> : null}
       </div>
 
       {!isLoading && comentarios.length === 0 ? (

@@ -78,9 +78,24 @@ describe('ComentariosSection', () => {
   test('renderiza lista de comentários', async () => {
     render(<ComentariosSection postId="post-1" />);
 
+    expect(screen.getByRole('status')).toHaveTextContent('Carregando comentários...');
     expect(await screen.findByText('Comentário inicial')).toBeInTheDocument();
     expect(screen.getByText('Aluno Teste')).toBeInTheDocument();
     expect(screen.getByText('Aluno')).toBeInTheDocument();
+  });
+
+  test('renderiza comentário de professor', async () => {
+    listarComentariosMock.mockResolvedValueOnce({
+      dados: [{
+        ...comentarioPermitido,
+        autor: { _id: 'professor-1', nome: 'Professor Teste', role: 'professor' as const },
+      }],
+    });
+
+    render(<ComentariosSection postId="post-1" />);
+
+    expect(await screen.findByText('Professor Teste')).toBeInTheDocument();
+    expect(screen.getByText('Professor')).toBeInTheDocument();
   });
 
   test('renderiza estado vazio', async () => {
@@ -147,6 +162,18 @@ describe('ComentariosSection', () => {
     expect(await screen.findByText('Comentário excluído com sucesso.')).toBeInTheDocument();
   });
 
+  test('cancela exclusão de comentário', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValueOnce(false);
+
+    render(<ComentariosSection postId="post-1" />);
+
+    await screen.findByText('Comentário inicial');
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir' }));
+
+    expect(excluirComentarioMock).not.toHaveBeenCalled();
+    expect(screen.getByText('Comentário inicial')).toBeInTheDocument();
+  });
+
   test('esconde ações sem permissão', async () => {
     listarComentariosMock.mockResolvedValueOnce({ dados: [comentarioSemPermissao] });
 
@@ -162,7 +189,7 @@ describe('ComentariosSection', () => {
 
     render(<ComentariosSection postId="post-1" />);
 
-    expect(await screen.findByText('Você não possui permissão para esta ação.')).toBeInTheDocument();
+    expect(await screen.findByText('Você não tem permissão para realizar esta ação.')).toBeInTheDocument();
     expect(navigateMock).not.toHaveBeenCalled();
   });
 
@@ -171,8 +198,16 @@ describe('ComentariosSection', () => {
 
     render(<ComentariosSection postId="post-1" />);
 
-    expect(await screen.findByText('Sua sessão expirou. Faça login novamente.')).toBeInTheDocument();
+    expect(await screen.findByText('Sua sessão expirou. Entre novamente.')).toBeInTheDocument();
     expect(logoutMock).toHaveBeenCalled();
     expect(navigateMock).toHaveBeenCalledWith('/', { replace: true });
+  });
+
+  test('trata erro de rede ao listar', async () => {
+    listarComentariosMock.mockRejectedValueOnce(new TypeError('fetch failed'));
+
+    render(<ComentariosSection postId="post-1" />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível conectar ao servidor.');
   });
 });

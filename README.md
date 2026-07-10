@@ -44,6 +44,7 @@ Scripts reais definidos no `package.json`:
 | `pnpm dev` | Inicia o servidor de desenvolvimento Vite. |
 | `pnpm build` | Gera a build de produção com Vite. |
 | `pnpm test` | Executa testes com Vitest e Testing Library. |
+| `pnpm test:coverage` | Executa testes com relatório de cobertura V8 do Vitest. |
 
 Não há script de lint configurado atualmente.
 
@@ -275,7 +276,7 @@ Os dados abaixo vêm de `src/app/data/mockData.ts` ou de textos fixos nas telas:
 - feedbacks atribuídos à IA;
 - conteúdos relacionados quando não vêm de tags dos posts.
 
-Os botões de criação/publicação em telas de formulário ainda não persistem dados no backend.
+Os botões de criação/publicação de atividades ainda não persistem dados no backend. O formulário de conteúdo/post do professor já usa a API real.
 
 Posts, perfis básicos e comentários não usam mocks quando a API responde; as telas exibem estado de vazio ou erro quando a API não está disponível ou quando o recurso não existe.
 
@@ -337,18 +338,21 @@ Limite importante: os botões de leitura alternam estado visual, mas ainda não 
 | `src/app/components/AIFeedback.tsx` | Card visual de feedback simulado com níveis de detalhe. |
 | `src/app/components/ComentariosSection.tsx` | Formulário e lista de comentários integrados ao backend. |
 | `src/app/components/ComentariosSection.test.tsx` | Testes de comportamento da seção de comentários. |
+| `src/app/components/feedback.tsx` | Estados reutilizáveis de erro, carregamento, vazio e feedback acessível. |
 | `src/app/components/ui.tsx` | Componentes básicos reutilizados pela interface. |
 | `src/app/config/api.ts` | Configuração da URL da API. |
 | `src/app/contexts/AuthContext.tsx` | Estado de sessão, login, logout e restauração de usuário. |
 | `src/app/hooks/usePostContents.ts` | Hook para buscar posts/conteúdos reais e tratar carregamento/erro/vazio. |
-| `src/app/services/api.ts` | Cliente HTTP com token JWT automático. |
+| `src/app/services/api.ts` | Cliente HTTP com token JWT automático e normalização central de erros. |
 | `src/app/services/authService.ts` | Serviços de login e usuário autenticado. |
 | `src/app/services/comentarioService.ts` | Serviços e tipos do contrato de comentários. |
 | `src/app/services/postService.ts` | Serviços de posts e mapeamento para conteúdos da UI. |
 | `src/app/services/profileService.ts` | Serviços de perfil autenticado de aluno e professor. |
 | `src/app/types/api.ts` | Tipos TypeScript do contrato principal da API. |
 | `src/app/data/mockData.ts` | Dados simulados usados nas telas ainda não integradas. |
-| `src/app/test/setup.ts` | Setup dos testes com matchers do Testing Library. |
+| `src/app/test/setup.ts` | Setup dos testes com matchers do Testing Library e limpeza de storage/mocks. |
+| `src/app/test/fixtures.ts` | Fixtures reutilizáveis de usuário, sessão, posts, perfis e comentários. |
+| `src/app/test/renderWithProviders.tsx` | Helper de renderização com router e providers. |
 | `src/styles/` | Estilos globais, tema, fontes e Tailwind CSS. |
 | `src/imports/` | Imagens importadas para o projeto. |
 
@@ -364,6 +368,9 @@ Limite importante: os botões de leitura alternam estado visual, mas ainda não 
 - Perfis básicos usam dados reais do backend.
 - Comentários são carregados a partir do backend nas telas de detalhe de conteúdo.
 - A API retorna `podeEditar` e `podeExcluir`; a interface usa esses campos para mostrar ações sem recalcular regras complexas.
+- Erros HTTP são normalizados em `apiFetch` e exibidos por componentes visuais reutilizáveis.
+- `401` fora do login dispara encerramento de sessão, remove o token e orienta novo login.
+- `403` mantém a sessão ativa e exibe acesso negado.
 - O CI do frontend executa `pnpm install --frozen-lockfile` e `pnpm build`.
 
 ## Status atual
@@ -380,14 +387,21 @@ Implementado:
 - Perfis básicos reais de aluno e professor.
 - Integração real de comentários em posts/conteúdos.
 - Workflow de CI para build do frontend.
-- Testes automatizados da seção de comentários.
+- Testes automatizados de autenticação, AuthContext, rotas protegidas, posts, perfis, comentários e feedback de erros.
+- Padronização global de erros e estados assíncronos.
 
 Ainda não implementado:
 
 - Persistência real para atividades, respostas, correções, presença, boletim e cronograma.
 - Integração real de IA.
 - Síntese de voz real para os botões de leitura.
-- Validações completas de formulários e tratamento avançado de estados de erro.
+- Validações completas de formulários acadêmicos ainda mockados.
+
+Status da etapa:
+
+- Finalização dos testes do frontend: concluída.
+- Padronização global de erros: concluída.
+- Validação de build e testes: concluída.
 
 ## Limitações conhecidas
 
@@ -399,6 +413,24 @@ Ainda não implementado:
 - O projeto não possui script de lint configurado.
 - A leitura em voz alta ainda não está conectada a Web Speech API ou serviço equivalente.
 - Comentários dependem de posts reais do backend; ao abrir conteúdo mockado, a seção mostra erro de recurso inexistente.
+
+## Tratamento de erros
+
+O modelo central de erro fica em `src/app/services/api.ts` como `AppError`, `ApiError`, `normalizeApiError` e `getFriendlyErrorMessage`. A normalização trata `400`, `401`, `403`, `404`, `409`, `422`, `429`, `500`, falha de rede, timeout e resposta inválida sem expor stack trace, token ou resposta bruta.
+
+Os estados visuais reutilizáveis ficam em `src/app/components/feedback.tsx`:
+
+- `ErrorState`: erro com título, mensagem, status, retry, voltar, variante compacta/página, `role="alert"` e foco opcional.
+- `FeedbackMessage`: sucesso, erro, aviso e informação com anúncio acessível e fechamento.
+- `LoadingState`: carregamento anunciado com `role="status"`.
+- `EmptyState`: estado vazio separado de erro.
+
+Comportamento global:
+
+- `401` em rota protegida ou `/auth/me`: limpa sessão, remove `luminia:authToken`, evita manter usuário inválido e mostra mensagem de sessão expirada.
+- `401` no login: é tratado como credenciais inválidas, sem encerrar uma sessão inexistente.
+- `403`: mantém sessão ativa, mostra acesso negado e não redireciona automaticamente para login.
+- Erro de rede ao restaurar sessão: a política atual encerra a sessão por segurança do MVP; essa decisão evita exibir conteúdo protegido quando não foi possível confirmar o usuário.
 
 ## Como testar comentários
 
@@ -469,22 +501,49 @@ Execute os testes automatizados:
 pnpm test
 ```
 
+Execute cobertura:
+
+```bash
+pnpm test:coverage
+```
+
 Execute também a build de produção:
 
 ```bash
 pnpm build
 ```
 
-A suíte atual cobre a seção de comentários: renderização, estado vazio, envio, validação de campo vazio, contador, edição, exclusão, ações escondidas sem permissão e erros `401`/`403`.
+A suíte validada nesta etapa possui 8 arquivos e 65 testes. Fluxos cobertos:
+
+- login de professor e aluno;
+- credenciais inválidas, falha de rede, campos obrigatórios e envio duplicado;
+- restauração de sessão, token ausente, token expirado, erro de rede e logout no `AuthContext`;
+- rotas protegidas, loading de sessão e proteção por role;
+- listagem de posts com loading, vazio, erro e retry;
+- permissões de aluno/professor em posts;
+- criação, edição, exclusão, cancelamento e erros de posts;
+- perfis de aluno e professor, estados vazios, erro e endpoint correto por role;
+- comentários com listar, criar, editar, excluir, cancelar exclusão, permissões, aluno/professor, loading, vazio, rede, `401` e `403`;
+- normalização central de erros e feedback visual acessível.
+
+Cobertura real em 2026-07-09:
+
+| Métrica | Cobertura |
+| --- | ---: |
+| Statements | 70.95% |
+| Branches | 64.12% |
+| Functions | 51.59% |
+| Lines | 71.36% |
+
+Limitação atual: não há script de lint nem typecheck dedicado no `package.json`; por isso a validação final executa `pnpm test`, `pnpm test:coverage` e `pnpm build`. Não foram adicionados thresholds de cobertura porque funções ainda ficariam abaixo de uma meta realista sem ampliar testes das telas acadêmicas mockadas.
 
 ## Próximos passos
 
-1. Ampliar testes automatizados para autenticação, autorização, posts e perfis.
-2. Ampliar e endurecer testes dos comentários já implementados.
-3. Criar turmas e disciplinas.
-4. Criar atividades e entregas.
-5. Criar correções, presença e boletim.
-6. Integrar IA por último, após consolidar os fluxos principais.
+1. Criar turmas e disciplinas.
+2. Integrar turmas e disciplinas ao frontend.
+3. Criar atividades e entregas.
+4. Criar correções, presença e boletim.
+5. Integrar IA por último.
 
 ## Histórico de evolução
 
@@ -495,6 +554,9 @@ A suíte atual cobre a seção de comentários: renderização, estado vazio, en
 - Autorização por role: concluída.
 - Integração real frontend-backend: concluída nesta etapa.
 - Comentários: implementados.
+- Testes automatizados do frontend: concluídos.
+- Padronização global de erros: concluída.
+- Validação de build e testes: concluída.
 - Funcionalidades acadêmicas: pendentes.
 - Integração com IA: pendente e planejada para o final.
 
