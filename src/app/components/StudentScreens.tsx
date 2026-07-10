@@ -5,6 +5,7 @@ import { activities, feedbacks, grades, schedule, student, teachersBySubject } f
 import { useAuth } from '../contexts/AuthContext';
 import { usePostContent, usePostContents } from '../hooks/usePostContents';
 import { AIFeedbackCard } from './AIFeedback';
+import { ComentariosSection } from './ComentariosSection';
 import { Badge, Button, Card, ProfileHeader, ReadAloudButton, SectionHeader } from './ui';
 
 const BackButton = ({ to }: { to?: string }) => {
@@ -92,6 +93,7 @@ export const StudentContentDetail = () => {
         <div className="flex justify-between items-start gap-3 mb-3"><h2 className="font-medium text-lg">Conteúdos relacionados</h2><ReadAloudButton label="Ouvir texto" /></div>
         <div className="space-y-2">{content.related.map(item => <p key={item} className="rounded-xl bg-input-background p-3">{item}</p>)}</div>
       </Card>
+      <ComentariosSection postId={content.id} />
     </div>
   );
 };

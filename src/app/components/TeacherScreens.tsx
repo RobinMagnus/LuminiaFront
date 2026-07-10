@@ -4,6 +4,7 @@ import { BookOpen, CalendarDays, CheckSquare, FileText, PenTool, Sparkles, Users
 import { activities, attendance, classes, corrections, teacher } from '../data/mockData';
 import { useAuth } from '../contexts/AuthContext';
 import { usePostContent, usePostContents } from '../hooks/usePostContents';
+import { ComentariosSection } from './ComentariosSection';
 import { AITag, Badge, Button, Card, ProfileHeader, ReadAloudButton, SectionHeader } from './ui';
 
 const BackButton = ({ to }: { to?: string }) => {
@@ -210,6 +211,7 @@ export const TeacherContentDetail = () => {
         </div>
         <p className="text-base leading-relaxed">{content.text}</p>
       </Card>
+      <ComentariosSection postId={content.id} />
     </div>
   );
 };

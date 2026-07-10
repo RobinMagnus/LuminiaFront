@@ -29,6 +29,8 @@ Tecnologias identificadas nos arquivos reais do projeto:
 | Material UI | Dependências `@mui/*` presentes no projeto. |
 | pnpm | Gerenciador de pacotes usado pelo lockfile e workspace. |
 | GitHub Actions | CI do frontend com instalação e build. |
+| Vitest | Testes automatizados de comportamento. |
+| Testing Library | Testes da interface de comentários. |
 
 ## Scripts disponíveis
 
@@ -38,8 +40,9 @@ Scripts reais definidos no `package.json`:
 | --- | --- |
 | `pnpm dev` | Inicia o servidor de desenvolvimento Vite. |
 | `pnpm build` | Gera a build de produção com Vite. |
+| `pnpm test` | Executa testes com Vitest e Testing Library. |
 
-Não há scripts de lint ou testes automatizados configurados atualmente.
+Não há script de lint configurado atualmente.
 
 ## Instalação
 
@@ -72,6 +75,16 @@ Gere a build de produção:
 pnpm build
 ```
 
+Para executar o fluxo integrado, suba também o backend em outro terminal:
+
+```bash
+cd ../LuminiaBack
+docker compose up -d
+npm install
+npm run seed
+npm run dev
+```
+
 ## Variáveis de ambiente
 
 O frontend possui `.env.example` com:
@@ -87,6 +100,12 @@ cp .env.example .env
 ```
 
 `VITE_API_URL` define a URL base da API usada pelos serviços em `src/app/services/`.
+
+Problemas comuns:
+
+- se o login falhar por rede, confirme se o backend está rodando em `http://localhost:3000`;
+- se houver erro de CORS, confirme se `CORS_ORIGIN` no backend inclui `http://localhost:5173`;
+- em dispositivo físico, `localhost` aponta para o próprio dispositivo. Use o IP local da máquina, por exemplo `VITE_API_URL=http://192.168.x.x:3000`, sem fixar esse IP no código.
 
 ## Telas e rotas disponíveis
 
@@ -148,6 +167,7 @@ Disponível hoje:
 - navegação por atividades, conteúdos, correções e perfil;
 - logout removendo o token do `localStorage`;
 - listagem e detalhe de conteúdos tentando consumir `GET /posts`.
+- comentários reais em posts/conteúdos: listar, criar, editar o próprio comentário e excluir conforme permissão retornada pela API.
 
 Ainda simulado:
 
@@ -170,6 +190,7 @@ Disponível hoje:
 - navegação por conteúdos, atividades, feedback e perfil;
 - logout removendo o token do `localStorage`;
 - listagem e detalhe de conteúdos tentando consumir `GET /posts`.
+- comentários reais em posts/conteúdos: listar, criar, editar o próprio comentário e excluir conforme permissão retornada pela API.
 
 Ainda simulado:
 
@@ -189,6 +210,31 @@ Ainda simulado:
 - Logout com remoção do token.
 - Proteção de rotas por role (`professor` e `aluno`).
 - `GET /posts` e `GET /posts/:id` nas telas de conteúdos, com fallback para mocks caso a API não responda ou não haja dados.
+- `GET /posts/:postId/comentarios`: listagem real de comentários.
+- `POST /posts/:postId/comentarios`: criação real de comentário.
+- `PUT /comentarios/:id`: edição real de comentário próprio.
+- `DELETE /comentarios/:id`: exclusão real quando `podeExcluir` vem como `true`.
+
+Contrato TypeScript de comentários:
+
+```ts
+type AutorComentario = {
+  _id: string;
+  nome: string;
+  role: 'aluno' | 'professor';
+};
+
+type Comentario = {
+  _id: string;
+  postId: string;
+  conteudo: string;
+  autor: AutorComentario;
+  criadoEm: string;
+  atualizadoEm: string;
+  podeEditar: boolean;
+  podeExcluir: boolean;
+};
+```
 
 ## O que ainda está mockado
 
@@ -208,6 +254,8 @@ Os dados abaixo vêm de `src/app/data/mockData.ts` ou de textos fixos nas telas:
 - conteúdos relacionados quando não vêm de tags dos posts.
 
 Os botões de criação/publicação em telas de formulário ainda não persistem dados no backend.
+
+Comentários não usam mocks quando a API responde; a tela exibe estado de erro quando a API não está disponível ou quando o post não existe.
 
 ## Acessibilidade
 
@@ -265,14 +313,18 @@ Limite importante: os botões de leitura alternam estado visual, mas ainda não 
 | `src/app/components/TeacherScreens.tsx` | Telas da área do professor. |
 | `src/app/components/StudentScreens.tsx` | Telas da área do aluno. |
 | `src/app/components/AIFeedback.tsx` | Card visual de feedback simulado com níveis de detalhe. |
+| `src/app/components/ComentariosSection.tsx` | Formulário e lista de comentários integrados ao backend. |
+| `src/app/components/ComentariosSection.test.tsx` | Testes de comportamento da seção de comentários. |
 | `src/app/components/ui.tsx` | Componentes básicos reutilizados pela interface. |
 | `src/app/config/api.ts` | Configuração da URL da API. |
 | `src/app/contexts/AuthContext.tsx` | Estado de sessão, login, logout e restauração de usuário. |
 | `src/app/hooks/usePostContents.ts` | Hook para buscar posts/conteúdos e aplicar fallback mockado. |
 | `src/app/services/api.ts` | Cliente HTTP com token JWT automático. |
 | `src/app/services/authService.ts` | Serviços de login e usuário autenticado. |
+| `src/app/services/comentarioService.ts` | Serviços e tipos do contrato de comentários. |
 | `src/app/services/postService.ts` | Serviços de posts e mapeamento para conteúdos da UI. |
 | `src/app/data/mockData.ts` | Dados simulados usados nas telas ainda não integradas. |
+| `src/app/test/setup.ts` | Setup dos testes com matchers do Testing Library. |
 | `src/styles/` | Estilos globais, tema, fontes e Tailwind CSS. |
 | `src/imports/` | Imagens importadas para o projeto. |
 
@@ -284,6 +336,8 @@ Limite importante: os botões de leitura alternam estado visual, mas ainda não 
 - Aluno não acessa rotas de professor, e professor não acessa rotas de aluno.
 - Conteúdos tentam usar posts reais do backend.
 - Quando o backend está indisponível, as telas de conteúdo usam dados mockados para manter o MVP navegável.
+- Comentários são carregados a partir do backend nas telas de detalhe de conteúdo.
+- A API retorna `podeEditar` e `podeExcluir`; a interface usa esses campos para mostrar ações sem recalcular regras complexas.
 - O CI do frontend executa `pnpm install --frozen-lockfile` e `pnpm build`.
 
 ## Status atual
@@ -296,12 +350,13 @@ Implementado:
 - Proteção de rotas por perfil.
 - Camada de serviços HTTP organizada.
 - Integração inicial com posts/conteúdos do backend.
+- Integração real de comentários em posts/conteúdos.
 - Fallback de conteúdos para mocks.
 - Workflow de CI para build do frontend.
+- Testes automatizados da seção de comentários.
 
 Ainda não implementado:
 
-- Testes automatizados.
 - Persistência real para atividades, respostas, correções, presença, boletim e cronograma.
 - Criação real de posts pelo formulário do professor.
 - Integração real de IA.
@@ -315,15 +370,56 @@ Ainda não implementado:
 - Boletim, presença e cronograma são apenas representações visuais.
 - A tela de envio de atividade altera estado local, mas não envia dados para a API.
 - Os formulários de atividade e conteúdo ainda não chamam endpoints de criação.
-- O projeto não possui scripts de teste ou lint configurados.
+- O projeto não possui script de lint configurado.
 - A leitura em voz alta ainda não está conectada a Web Speech API ou serviço equivalente.
+- Comentários dependem de posts reais do backend; ao abrir conteúdo mockado, a seção mostra erro de recurso inexistente.
+
+## Como testar comentários
+
+1. No backend, rode `docker compose up -d`, `npm run seed` e `npm run dev`.
+2. No frontend, confirme `.env` com `VITE_API_URL=http://localhost:3000`.
+3. Rode `pnpm dev`.
+4. Faça login como aluno: `aluno@luminia.com` / `123456`.
+5. Abra `Conteúdos`, entre em um conteúdo real e crie um comentário.
+6. Edite o próprio comentário.
+7. Exclua o próprio comentário.
+8. Faça login como professor: `professor@luminia.com` / `123456`.
+9. Abra o mesmo conteúdo e valide listagem, criação e exclusão permitida de comentários no próprio post.
+
+Estados tratados na interface:
+
+- carregando;
+- sucesso;
+- lista vazia;
+- erro de rede;
+- sessão expirada (`401`, com logout e redirecionamento para login);
+- sem permissão (`403`);
+- recurso não encontrado (`404`);
+- erro de validação;
+- confirmação antes de excluir.
+
+## Testes
+
+Execute os testes automatizados:
+
+```bash
+pnpm test
+```
+
+Execute também a build de produção:
+
+```bash
+pnpm build
+```
+
+A suíte atual cobre a seção de comentários: renderização, estado vazio, envio, validação de campo vazio, contador, edição, exclusão, ações escondidas sem permissão e erros `401`/`403`.
 
 ## Próximos passos
 
 - Integrar criação, edição e remoção de posts no frontend.
 - Criar endpoints e telas integradas para atividades e entregas.
 - Implementar persistência real de correções, notas, presença e cronograma.
-- Adicionar testes automatizados para autenticação, rotas protegidas e serviços.
+- Expandir testes automatizados para autenticação, rotas protegidas e demais serviços.
 - Implementar feedbacks de erro e carregamento mais completos.
 - Realizar auditoria de acessibilidade com Lighthouse, axe e testes por teclado.
 - Implementar síntese de voz real.
