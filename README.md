@@ -1,6 +1,6 @@
 # Luminia Frontend
 
-Frontend do **Luminia**, plataforma educacional com experiências separadas para professores e alunos. O projeto foi criado como MVP acadêmico/hackathon, com interface mobile first, autenticação integrada ao backend e telas demonstrativas para fluxos educacionais.
+Frontend do **Luminia**, plataforma educacional com experiências separadas para professores e alunos. O projeto foi criado como MVP acadêmico/hackathon, com interface mobile first, autenticação[...]
 
 O bundle visual inicial veio de um protótipo do Figma Community: `Luminiaprototicoapp (Community)`.
 
@@ -171,6 +171,78 @@ Rotas protegidas para usuário com role `aluno`:
 | `/student/feedback` | Feedback do aluno com simulação de adaptação por nível. |
 | `/student/profile` | Perfil do aluno e logout. |
 
+## Fluxo de branching
+
+Este projeto segue um fluxo de desenvolvimento estruturado com `develop` como branch de integração e `main` para produção.
+
+### Como contribuir
+
+1. **Crie uma branch feature a partir de `develop`:**
+   ```bash
+   git checkout develop
+   git pull origin develop
+   git checkout -b feature/sua-feature
+   ```
+
+2. **Faça commits e push para a branch feature:**
+   ```bash
+   git push origin feature/sua-feature
+   ```
+
+3. **Abra um Pull Request (PR) para `develop`:**
+   - Vá para o repositório no GitHub
+   - Clique em "New Pull Request"
+   - Defina `base: develop` e `compare: feature/sua-feature`
+   - Adicione descrição clara das mudanças
+   - Solicite revisão
+
+4. **Depois de revisado e testado em `develop`, abra um PR para `main`:**
+   - Quando a feature estiver pronta para produção
+   - Crie um PR de `develop` → `main`
+   - Garanta que todos os testes passam
+
+### Proteções de branch
+
+A branch `main` possui proteções obrigatórias:
+
+- ✅ Checks de CI devem passar (build e testes)
+- ✅ Requer aprovação de @RobinMagnus
+- ✅ Admins também devem respeitar as proteções
+
+Para aplicar manualmente, use:
+
+```bash
+curl -X PUT \
+  -H "Accept: application/vnd.github+json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  https://api.github.com/repos/RobinMagnus/LuminiaFront/branches/main/protection \
+  -d '{
+    "required_status_checks": {
+      "strict": true,
+      "contexts": []
+    },
+    "enforce_admins": true,
+    "required_pull_request_reviews": {
+      "dismiss_stale_reviews": false,
+      "require_code_owner_reviews": false,
+      "required_approving_review_count": 1
+    },
+    "restrictions": null
+  }'
+```
+
+**Token necessário:** PAT com scope `repo` e permissão de admin no repositório.
+
+### Automação: Auto-merge develop → main
+
+Um workflow automático tenta fazer merge de `develop` em `main` sempre que há commits à frente:
+
+- Gatilho: push em `develop`
+- Cria ou reutiliza PR de `develop` → `main` com título: `Automated: merge develop into main`
+- Tenta ativar auto-merge (merge method: `merge`)
+
+**Nota sobre auto-merge:** Se o auto-merge falhar (permissões insuficientes), o workflow documenta a necessidade de um PAT com escopo `repo` armazenado em `Secrets` como `AUTO_MERGE_TOKEN`.
+
 ## Fluxos disponíveis
 
 ### Fluxo de professor
@@ -300,7 +372,8 @@ Limite importante: os botões de leitura alternam estado visual, mas ainda não 
 .
 ├── .github/
 │   └── workflows/
-│       └── frontend-ci.yml
+│       ├── frontend-ci.yml
+│       └── auto-merge-develop-to-main.yml
 ├── guidelines/
 │   └── Guidelines.md
 ├── src/
@@ -389,6 +462,7 @@ Implementado:
 - Workflow de CI para build do frontend.
 - Testes automatizados de autenticação, AuthContext, rotas protegidas, posts, perfis, comentários e feedback de erros.
 - Padronização global de erros e estados assíncronos.
+- Fluxo de branching automatizado (develop → main).
 
 Ainda não implementado:
 
@@ -402,6 +476,7 @@ Status da etapa:
 - Finalização dos testes do frontend: concluída.
 - Padronização global de erros: concluída.
 - Validação de build e testes: concluída.
+- Fluxo de branching e auto-merge: configurado.
 
 ## Limitações conhecidas
 
@@ -416,7 +491,7 @@ Status da etapa:
 
 ## Tratamento de erros
 
-O modelo central de erro fica em `src/app/services/api.ts` como `AppError`, `ApiError`, `normalizeApiError` e `getFriendlyErrorMessage`. A normalização trata `400`, `401`, `403`, `404`, `409`, `422`, `429`, `500`, falha de rede, timeout e resposta inválida sem expor stack trace, token ou resposta bruta.
+O modelo central de erro fica em `src/app/services/api.ts` como `AppError`, `ApiError`, `normalizeApiError` e `getFriendlyErrorMessage`. A normalização trata `400`, `401`, `403`, `404`, `409`, [...]
 
 Os estados visuais reutilizáveis ficam em `src/app/components/feedback.tsx`:
 
@@ -535,7 +610,7 @@ Cobertura real em 2026-07-09:
 | Functions | 51.59% |
 | Lines | 71.36% |
 
-Limitação atual: não há script de lint nem typecheck dedicado no `package.json`; por isso a validação final executa `pnpm test`, `pnpm test:coverage` e `pnpm build`. Não foram adicionados thresholds de cobertura porque funções ainda ficariam abaixo de uma meta realista sem ampliar testes das telas acadêmicas mockadas.
+Limitação atual: não há script de lint nem typecheck dedicado no `package.json`; por isso a validação final executa `pnpm test`, `pnpm test:coverage` e `pnpm build`. Não foram adicionados [...]
 
 ## Próximos passos
 
@@ -557,6 +632,7 @@ Limitação atual: não há script de lint nem typecheck dedicado no `package.js
 - Testes automatizados do frontend: concluídos.
 - Padronização global de erros: concluída.
 - Validação de build e testes: concluída.
+- Fluxo de branching automatizado: configurado.
 - Funcionalidades acadêmicas: pendentes.
 - Integração com IA: pendente e planejada para o final.
 
