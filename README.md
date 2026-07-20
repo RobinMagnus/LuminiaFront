@@ -1,85 +1,114 @@
 # Luminia Frontend
 
-Frontend do **Luminia**, plataforma educacional com experiências separadas para professores e alunos. O projeto foi criado como MVP acadêmico/hackathon, com interface mobile first, autenticação integrada ao backend e telas demonstrativas para fluxos educacionais.
+Interface web do **Luminia**, plataforma educacional com experiências separadas para professores e alunos. A aplicação consome a API REST do Luminia Backend para autenticação, conteúdos, perfis e fluxos acadêmicos.
 
-O bundle visual inicial veio de um protótipo do Figma Community: `Luminiaprototicoapp (Community)`.
+> Observação: a pasta local deste repositório está nomeada como `LuminiaFront`.
 
-## Sobre o projeto
+## SUMÁRIO
 
-O frontend organiza a navegação de dois perfis:
+1. [Apresentação](#1-apresentação)
+2. [Tecnologias utilizadas](#2-tecnologias-utilizadas)
+3. [Scripts disponíveis](#3-scripts-disponíveis)
+4. [Fluxo de desenvolvimento](#4-fluxo-de-desenvolvimento)
+5. [Instalação e configuração](#5-instalação-e-configuração)
+6. [Execução da aplicação](#6-execução-da-aplicação)
+7. [Autenticação e rotas](#7-autenticação-e-rotas)
+8. [Integração com a API](#8-integração-com-a-api)
+9. [Testes e qualidade](#9-testes-e-qualidade)
+10. [Estrutura do projeto](#10-estrutura-do-projeto)
+11. [Tratamento de erros e acessibilidade](#11-tratamento-de-erros-e-acessibilidade)
+12. [Mapeamento da implantação](#12-mapeamento-da-implantação)
+13. [Limitações conhecidas](#13-limitações-conhecidas)
+14. [Planejamento](#14-planejamento)
+15. [Referências normativas](#15-referências-normativas)
 
-- professor: dashboard, atividades, conteúdos, correções e perfil;
-- aluno: dashboard, conteúdos, atividades, feedback e perfil.
+## 1 APRESENTAÇÃO
 
-Parte da aplicação já consome o backend real. Outras telas ainda usam dados mockados para demonstrar o produto sem depender de endpoints que ainda não existem.
+Este documento registra os requisitos de execução, a organização técnica, as rotas da interface e o estado de integração do frontend. A estrutura segue o padrão documental do repositório de backend, com numeração progressiva e seções equivalentes.
 
-Nesta etapa, autenticação, sessão, posts/conteúdos e perfis básicos estão integrados ao backend real.
+O projeto é um MVP mobile first desenvolvido a partir do protótipo `Luminiaprototicoapp (Community)`. Os dados operacionais vêm do backend; os recursos de IA permanecem apenas como direcionamento de produto.
 
-## Tecnologias usadas
+## 2 TECNOLOGIAS UTILIZADAS
 
-Tecnologias identificadas nos arquivos reais do projeto:
+- React 18 e TypeScript;
+- Vite 6;
+- React Router;
+- Tailwind CSS;
+- Lucide React;
+- componentes Radix UI e Material UI;
+- Fetch API com cliente HTTP centralizado;
+- Vitest, Testing Library e cobertura V8;
+- pnpm;
+- GitHub Actions para integração contínua.
 
-| Tecnologia | Uso |
-| --- | --- |
-| React | Construção da interface em componentes. |
-| TSX/TypeScript | Componentes e serviços escritos em arquivos `.tsx` e `.ts`. |
-| Vite | Servidor de desenvolvimento e build. |
-| React Router | Rotas, navegação e proteção de áreas por perfil. |
-| Tailwind CSS | Estilização por utilitários e tema visual. |
-| Lucide React | Ícones da interface. |
-| Radix UI | Dependências de componentes acessíveis presentes no projeto. |
-| Material UI | Dependências `@mui/*` presentes no projeto. |
-| pnpm | Gerenciador de pacotes usado pelo lockfile e workspace. |
-| GitHub Actions | CI do frontend com instalação e build. |
-| Vitest | Testes automatizados de comportamento. |
-| Testing Library | Testes da interface de comentários. |
-| Fetch API | Comunicação HTTP centralizada em `apiFetch`. |
-
-## Scripts disponíveis
-
-Scripts reais definidos no `package.json`:
+## 3 SCRIPTS DISPONÍVEIS
 
 | Comando | Descrição |
 | --- | --- |
 | `pnpm dev` | Inicia o servidor de desenvolvimento Vite. |
-| `pnpm build` | Gera a build de produção com Vite. |
-| `pnpm test` | Executa testes com Vitest e Testing Library. |
-| `pnpm test:coverage` | Executa testes com relatório de cobertura V8 do Vitest. |
+| `pnpm build` | Gera o bundle de produção. |
+| `pnpm test` | Executa os testes uma vez com Vitest. |
+| `pnpm test:coverage` | Executa os testes e gera cobertura V8. |
 
 Não há script de lint configurado atualmente.
 
-## Instalação
+## 4 FLUXO DE DESENVOLVIMENTO
 
-Pré-requisitos:
+Atualize `develop` e crie uma branch de funcionalidade:
 
-- Node.js instalado;
-- pnpm instalado.
+```bash
+git switch develop
+git pull origin develop
+git switch -c feature/nome-da-feature
+```
 
-Instale as dependências:
+Após concluir e validar a alteração:
+
+```bash
+git push -u origin feature/nome-da-feature
+```
+
+O workflow em `.github/workflows/frontend-ci.yml` instala as dependências com lockfile congelado e valida a build. As regras de Pull Request e proteção de branches devem ser mantidas alinhadas às descritas no backend.
+
+## 5 INSTALAÇÃO E CONFIGURAÇÃO
+
+### 5.1 Pré-requisitos
+
+- Node.js 20 ou versão compatível;
+- pnpm;
+- Luminia Backend e MongoDB para os fluxos integrados.
+
+### 5.2 Instalação das dependências
 
 ```bash
 pnpm install
 ```
 
-Inicie o servidor de desenvolvimento:
+Em CI, use instalação reproduzível:
 
 ```bash
-pnpm dev
+pnpm install --frozen-lockfile
 ```
 
-Por padrão, o Vite disponibiliza a aplicação em:
+### 5.3 Variável de ambiente
 
-```txt
-http://localhost:5173/
-```
-
-Gere a build de produção:
+Crie o arquivo local a partir do exemplo:
 
 ```bash
-pnpm build
+cp .env.example .env
 ```
 
-Para executar o fluxo integrado, suba também o backend em outro terminal:
+Configuração padrão:
+
+```env
+VITE_API_URL=http://localhost:3000
+```
+
+`VITE_API_URL` define a URL base usada pelos serviços. Em dispositivo físico, use o IP local da máquina no lugar de `localhost`. No backend, inclua a origem do Vite em `CORS_ORIGIN`.
+
+## 6 EXECUÇÃO DA APLICAÇÃO
+
+Prepare primeiro o backend:
 
 ```bash
 cd ../LuminiaBack
@@ -89,481 +118,188 @@ npm run seed
 npm run dev
 ```
 
-## Variáveis de ambiente
-
-O frontend possui `.env.example` com:
-
-```env
-VITE_API_URL=http://localhost:3000
-```
-
-Crie o `.env` local:
+Em outro terminal, inicie o frontend:
 
 ```bash
-cp .env.example .env
+cd ../LuminiaFront
+pnpm dev
 ```
 
-`VITE_API_URL` define a URL base da API usada pelos serviços em `src/app/services/`.
+A interface fica disponível, por padrão, em `http://localhost:5173`.
 
-Problemas comuns:
-
-- se o login falhar por rede, confirme se o backend está rodando em `http://localhost:3000`;
-- se houver erro de CORS, confirme se `CORS_ORIGIN` no backend inclui `http://localhost:5173`;
-- em dispositivo físico, `localhost` aponta para o próprio dispositivo. Use o IP local da máquina, por exemplo `VITE_API_URL=http://192.168.x.x:3000`, sem fixar esse IP no código.
-
-## Telas e rotas disponíveis
-
-### Login
-
-| Rota | Descrição |
-| --- | --- |
-| `/` | Tela de login com email e senha. |
-
-O login usa o backend real em `POST /auth/login`. Após autenticação:
-
-- usuário com role `professor` é redirecionado para `/teacher`;
-- usuário com role `aluno` é redirecionado para `/student`.
-
-O token JWT é armazenado em `localStorage` como decisão de MVP web. Em produção, recomenda-se reavaliar a estratégia e considerar cookies `HttpOnly` conforme os requisitos de segurança.
-
-## Credenciais de teste
-
-Credenciais criadas pelo seed local do backend, apenas para desenvolvimento:
+Credenciais criadas pelo seed local:
 
 | Perfil | Email | Senha |
 | --- | --- | --- |
 | Professor | `professor@luminia.com` | `123456` |
 | Aluno | `aluno@luminia.com` | `123456` |
 
-Não use essas credenciais em produção.
+Essas credenciais são exclusivas para desenvolvimento.
 
-### Área do professor
+## 7 AUTENTICAÇÃO E ROTAS
 
-Rotas protegidas para usuário com role `professor`:
+### 7.1 Sessão
 
-| Rota | Tela |
-| --- | --- |
-| `/teacher` | Dashboard do professor. |
-| `/teacher/activities` | Lista de atividades. |
-| `/teacher/activity/:id` | Detalhe de atividade. |
-| `/teacher/create` | Formulário visual de criação de atividade. |
-| `/teacher/contents` | Lista de conteúdos. |
-| `/teacher/content/new` | Formulário visual de novo conteúdo. |
-| `/teacher/content/:id/edit` | Formulário de edição de conteúdo próprio. |
-| `/teacher/content/:id` | Detalhe de conteúdo. |
-| `/teacher/corrections` | Lista de turmas para correção. |
-| `/teacher/corrections/:classId` | Lista de correções por turma. |
-| `/teacher/correction/:id` | Tela visual de correção. |
-| `/teacher/profile` | Perfil do professor e logout. |
-| `/teacher/class/:classId` | Detalhe visual da turma. |
+O login usa `POST /auth/login` e a restauração de sessão usa `GET /auth/me`. O JWT é armazenado em `localStorage` sob a chave `luminia:authToken` e enviado automaticamente como Bearer Token.
 
-### Área do aluno
+Rotas protegidas verificam autenticação e role. Um `401` encerra a sessão; um `403` preserva a sessão e exibe acesso negado.
 
-Rotas protegidas para usuário com role `aluno`:
+### 7.2 Área do professor
 
 | Rota | Tela |
 | --- | --- |
-| `/student` | Dashboard do aluno. |
-| `/student/contents` | Lista de conteúdos. |
-| `/student/content/:id` | Detalhe de conteúdo. |
-| `/student/activities` | Lista de atividades. |
-| `/student/activity/:id` | Tela visual de resposta de atividade. |
-| `/student/feedback` | Feedback do aluno com simulação de adaptação por nível. |
-| `/student/profile` | Perfil do aluno e logout. |
+| `/teacher` | Dashboard. |
+| `/teacher/activities` | Atividades reais do professor. |
+| `/teacher/activity/:id` | Detalhe e resumo de entregas. |
+| `/teacher/create` | Criação de atividade publicada ou rascunho. |
+| `/teacher/contents` | Conteúdos publicados. |
+| `/teacher/content/new` | Criação de conteúdo. |
+| `/teacher/content/:id/edit` | Edição de conteúdo próprio. |
+| `/teacher/content/:id` | Detalhe e comentários. |
+| `/teacher/corrections` | Turmas disponíveis para correção. |
+| `/teacher/corrections/:classId` | Entregas da turma. |
+| `/teacher/correction/:id` | Correção ou revisão de entrega. |
+| `/teacher/profile` | Perfil e turmas atribuídas. |
+| `/teacher/class/:classId` | Turma, disciplinas e atividades. |
 
-## Fluxos disponíveis
+### 7.3 Área do aluno
 
-### Fluxo de professor
+| Rota | Tela |
+| --- | --- |
+| `/student` | Dashboard. |
+| `/student/contents` | Conteúdos disponíveis. |
+| `/student/content/:id` | Detalhe e comentários. |
+| `/student/activities` | Atividades e situação da entrega. |
+| `/student/activity/:id` | Resposta e envio de atividade. |
+| `/student/feedback` | Correções e notas recebidas. |
+| `/student/profile` | Perfil, disciplinas, boletim e cronograma. |
 
-Disponível hoje:
+## 8 INTEGRAÇÃO COM A API
 
-- login real com email e senha;
-- restauração de sessão com `GET /auth/me`;
-- proteção da área `/teacher`;
-- bloqueio de acesso de aluno às telas do professor;
-- visualização de dashboard;
-- navegação por atividades, conteúdos, correções e perfil;
-- logout removendo o token do `localStorage`;
-- listagem e detalhe de conteúdos com `GET /posts` e `GET /posts/:id`;
-- criação, edição e exclusão de posts próprios com `POST /posts`, `PUT /posts/:id` e `DELETE /posts/:id`;
-- perfil básico real com `GET /professores/me`.
-- comentários reais em posts/conteúdos: listar, criar, editar o próprio comentário e excluir conforme permissão retornada pela API.
+### 8.1 Endpoints consumidos
 
-Ainda simulado:
+| Funcionalidade | Endpoints |
+| --- | --- |
+| Autenticação | `POST /auth/login`, `GET /auth/me` |
+| Perfis | `GET /alunos/me`, `GET /professores/me` |
+| Conteúdos | `GET /posts`, `GET /posts/:id`, `POST /posts`, `PUT /posts/:id`, `DELETE /posts/:id` |
+| Comentários | `GET/POST /posts/:postId/comentarios`, `PUT/DELETE /comentarios/:id` |
+| Atividades | `GET /atividades`, `GET /atividades/:id`, `POST /atividades` |
+| Entregas | `POST /atividades/:id/entregas`, `GET /atividades/:id/entregas`, `GET /entregas/me` |
+| Correções | `GET/PUT /entregas/:id/correcao` |
+| Boletim | `GET /boletins/me` |
+| Cronograma | `GET /cronograma` |
+| Catálogo acadêmico | `GET /turmas`, `GET /turmas/:id`, `GET /disciplinas` |
 
-- criação real de atividades;
-- publicação real de conteúdo pelo formulário;
-- correção de atividades;
-- nota sugerida por IA;
-- presença;
-- dados detalhados de turma.
+Listagens acadêmicas e de conteúdo respeitam o envelope `{ dados, paginacao }`. Os contratos TypeScript ficam em `src/app/types/api.ts`; as chamadas acadêmicas ficam em `src/app/services/academicService.ts`.
 
-### Fluxo de aluno
+### 8.2 Fluxos acadêmicos implementados
 
-Disponível hoje:
+- Professor lista, consulta e cria atividades, inclusive como rascunho.
+- Professor acompanha entregas por atividade e por turma.
+- Professor registra e revisa nota e feedback de uma entrega.
+- Professor consulta suas turmas, disciplinas e atividades vinculadas.
+- Aluno lista somente atividades publicadas para sua turma.
+- Aluno acompanha se uma atividade está pendente, entregue ou corrigida.
+- Aluno envia uma resposta, com proteção contra reenvio duplicado.
+- Aluno consulta correções, boletim, cronograma e disciplinas reais.
 
-- login real com email e senha;
-- restauração de sessão com `GET /auth/me`;
-- proteção da área `/student`;
-- bloqueio de acesso de professor às telas do aluno;
-- visualização de dashboard;
-- navegação por conteúdos, atividades, feedback e perfil;
-- logout removendo o token do `localStorage`;
-- listagem e detalhe de conteúdos com `GET /posts` e `GET /posts/:id`;
-- perfil básico real com `GET /alunos/me`.
-- comentários reais em posts/conteúdos: listar, criar, editar o próprio comentário e excluir conforme permissão retornada pela API.
+## 9 TESTES E QUALIDADE
 
-Ainda simulado:
+Execute:
 
-- atividades pendentes;
-- envio real de resposta;
-- boletim;
-- cronograma;
-- feedback pedagógico;
-- adaptação de feedback por IA.
-
-## O que está integrado com backend
-
-- `POST /auth/login`: autenticação real.
-- `GET /auth/me`: recuperação do usuário autenticado.
-- Envio automático de `Authorization: Bearer TOKEN` pela camada `apiFetch`.
-- Token JWT salvo em `localStorage` com a chave `luminia:authToken`.
-- Logout com remoção do token.
-- Proteção de rotas por role (`professor` e `aluno`).
-- `GET /posts` e `GET /posts/:id` nas telas de conteúdos.
-- `POST /posts`, `PUT /posts/:id` e `DELETE /posts/:id` na área do professor.
-- `GET /alunos/me` e `GET /professores/me` nas telas de perfil.
-- `GET /posts/:postId/comentarios`: listagem real de comentários.
-- `POST /posts/:postId/comentarios`: criação real de comentário.
-- `PUT /comentarios/:id`: edição real de comentário próprio.
-- `DELETE /comentarios/:id`: exclusão real quando `podeExcluir` vem como `true`.
-
-Contrato TypeScript de comentários:
-
-```ts
-type AutorComentario = {
-  _id: string;
-  nome: string;
-  role: 'aluno' | 'professor';
-};
-
-type Comentario = {
-  _id: string;
-  postId: string;
-  conteudo: string;
-  autor: AutorComentario;
-  criadoEm: string;
-  atualizadoEm: string;
-  podeEditar: boolean;
-  podeExcluir: boolean;
-};
+```bash
+pnpm test
+pnpm test:coverage
+pnpm build
 ```
 
-## O que ainda está mockado
+A suíte cobre autenticação, contexto de sessão, rotas protegidas, posts, perfis, comentários e tratamento de erros. Novos fluxos acadêmicos devem receber testes de serviço e comportamento nas próximas alterações.
 
-Os dados abaixo vêm de `src/app/data/mockData.ts` ou de textos fixos nas telas:
-
-- atividades;
-- respostas de atividades;
-- correções;
-- notas;
-- boletim;
-- cronograma;
-- presença;
-- turmas;
-- matérias;
-- professores por matéria;
-- feedbacks atribuídos à IA;
-- conteúdos relacionados quando não vêm de tags dos posts.
-
-Os botões de criação/publicação de atividades ainda não persistem dados no backend. O formulário de conteúdo/post do professor já usa a API real.
-
-Posts, perfis básicos e comentários não usam mocks quando a API responde; as telas exibem estado de vazio ou erro quando a API não está disponível ou quando o recurso não existe.
-
-## Acessibilidade
-
-Recursos e cuidados presentes na interface atual:
-
-- navegação inferior simples e previsível;
-- textos curtos e linguagem clara;
-- ícones acompanhados de rótulos textuais;
-- botões grandes e áreas confortáveis para toque;
-- estados de foco em elementos interativos;
-- uso de `aria-label`, `aria-current`, `aria-selected`, `role="tab"` e `aria-live` em pontos da interface;
-- botões visuais de **Ouvir texto** e **Ouvir feedback**.
-
-Limite importante: os botões de leitura alternam estado visual, mas ainda não executam síntese de voz real.
-
-## Estrutura de pastas
+## 10 ESTRUTURA DO PROJETO
 
 ```txt
 .
-├── .github/
-│   └── workflows/
-│       └── frontend-ci.yml
+├── .github/workflows/
 ├── guidelines/
-│   └── Guidelines.md
 ├── src/
 │   ├── app/
-│   │   ├── App.tsx
 │   │   ├── components/
 │   │   ├── config/
 │   │   ├── contexts/
 │   │   ├── data/
 │   │   ├── hooks/
-│   │   └── services/
+│   │   ├── services/
+│   │   ├── test/
+│   │   ├── types/
+│   │   └── App.tsx
 │   ├── imports/
 │   ├── styles/
 │   └── main.tsx
-├── index.html
+├── .env.example
 ├── package.json
 ├── pnpm-lock.yaml
-├── pnpm-workspace.yaml
-├── postcss.config.mjs
 ├── vite.config.ts
-├── default_shadcn_theme.css
-├── ATTRIBUTIONS.md
 └── README.md
 ```
 
-### Principais arquivos
+Arquivos centrais:
 
-| Caminho | Descrição |
+| Caminho | Responsabilidade |
 | --- | --- |
-| `src/main.tsx` | Ponto de entrada da aplicação React. |
-| `src/app/App.tsx` | Rotas, layouts, navegação inferior e proteção por role. |
-| `src/app/components/LoginScreen.tsx` | Tela de login integrada ao backend. |
-| `src/app/components/TeacherScreens.tsx` | Telas da área do professor. |
-| `src/app/components/StudentScreens.tsx` | Telas da área do aluno. |
-| `src/app/components/AIFeedback.tsx` | Card visual de feedback simulado com níveis de detalhe. |
-| `src/app/components/ComentariosSection.tsx` | Formulário e lista de comentários integrados ao backend. |
-| `src/app/components/ComentariosSection.test.tsx` | Testes de comportamento da seção de comentários. |
-| `src/app/components/feedback.tsx` | Estados reutilizáveis de erro, carregamento, vazio e feedback acessível. |
-| `src/app/components/ui.tsx` | Componentes básicos reutilizados pela interface. |
-| `src/app/config/api.ts` | Configuração da URL da API. |
-| `src/app/contexts/AuthContext.tsx` | Estado de sessão, login, logout e restauração de usuário. |
-| `src/app/hooks/usePostContents.ts` | Hook para buscar posts/conteúdos reais e tratar carregamento/erro/vazio. |
-| `src/app/services/api.ts` | Cliente HTTP com token JWT automático e normalização central de erros. |
-| `src/app/services/authService.ts` | Serviços de login e usuário autenticado. |
-| `src/app/services/comentarioService.ts` | Serviços e tipos do contrato de comentários. |
-| `src/app/services/postService.ts` | Serviços de posts e mapeamento para conteúdos da UI. |
-| `src/app/services/profileService.ts` | Serviços de perfil autenticado de aluno e professor. |
-| `src/app/types/api.ts` | Tipos TypeScript do contrato principal da API. |
-| `src/app/data/mockData.ts` | Dados simulados usados nas telas ainda não integradas. |
-| `src/app/test/setup.ts` | Setup dos testes com matchers do Testing Library e limpeza de storage/mocks. |
-| `src/app/test/fixtures.ts` | Fixtures reutilizáveis de usuário, sessão, posts, perfis e comentários. |
-| `src/app/test/renderWithProviders.tsx` | Helper de renderização com router e providers. |
-| `src/styles/` | Estilos globais, tema, fontes e Tailwind CSS. |
-| `src/imports/` | Imagens importadas para o projeto. |
+| `src/app/App.tsx` | Rotas, layouts e autorização por role. |
+| `src/app/components/TeacherScreens.tsx` | Fluxos do professor. |
+| `src/app/components/StudentScreens.tsx` | Fluxos do aluno. |
+| `src/app/services/api.ts` | Cliente HTTP, JWT e normalização de erros. |
+| `src/app/services/academicService.ts` | Operações acadêmicas tipadas. |
+| `src/app/hooks/useAcademicData.ts` | Estado reutilizável de carregamento, erro e recarga. |
+| `src/app/types/api.ts` | Contratos da API. |
+| `src/app/data/mockData.ts` | Dados residuais de demonstração visual. |
 
-## Status da integração
+## 11 TRATAMENTO DE ERROS E ACESSIBILIDADE
 
-- Autenticação real com o backend está implementada.
-- Sessão é restaurada com `GET /auth/me` quando existe token no `localStorage`.
-- Rotas principais são protegidas conforme o perfil retornado pelo backend.
-- Aluno não acessa rotas de professor, e professor não acessa rotas de aluno.
-- Conteúdos/posts usam dados reais do backend.
-- Professor cria, edita e exclui posts próprios.
-- Aluno visualiza posts reais sem ações de criação/edição/exclusão.
-- Perfis básicos usam dados reais do backend.
-- Comentários são carregados a partir do backend nas telas de detalhe de conteúdo.
-- A API retorna `podeEditar` e `podeExcluir`; a interface usa esses campos para mostrar ações sem recalcular regras complexas.
-- Erros HTTP são normalizados em `apiFetch` e exibidos por componentes visuais reutilizáveis.
-- `401` fora do login dispara encerramento de sessão, remove o token e orienta novo login.
-- `403` mantém a sessão ativa e exibe acesso negado.
-- O CI do frontend executa `pnpm install --frozen-lockfile` e `pnpm build`.
+`ApiError` e `normalizeApiError` convertem falhas HTTP, rede, timeout e respostas inválidas em mensagens seguras. As telas usam componentes reutilizáveis para carregamento, lista vazia, erro e sucesso.
 
-## Status atual
+A interface possui foco visível, regiões `aria-live`, rótulos em controles, navegação por teclado e botões com área adequada para toque. Os botões de leitura ainda representam apenas a interação visual.
 
-Implementado:
+## 12 MAPEAMENTO DA IMPLANTAÇÃO
 
-- Interface mobile first para professor e aluno.
-- Login real com JWT.
-- Controle de sessão e logout.
-- Proteção de rotas por perfil.
-- Camada de serviços HTTP organizada.
-- Integração real com posts/conteúdos do backend.
-- Criação, edição e exclusão real de posts próprios para professor.
-- Perfis básicos reais de aluno e professor.
-- Integração real de comentários em posts/conteúdos.
-- Workflow de CI para build do frontend.
-- Testes automatizados de autenticação, AuthContext, rotas protegidas, posts, perfis, comentários e feedback de erros.
-- Padronização global de erros e estados assíncronos.
+| Área | Situação |
+| --- | --- |
+| Autenticação e autorização | Integrada. |
+| Posts e comentários | Integrados. |
+| Perfis | Integrados. |
+| Atividades e entregas | Integradas. |
+| Correções manuais e feedback | Integrados. |
+| Boletim e cronograma do aluno | Integrados para consulta. |
+| Turmas e disciplinas | Integradas para consulta. |
+| Presença | Endpoint disponível; falta uma listagem de alunos adequada à chamada na tela. |
+| IA e leitura em voz alta | Não integradas. |
 
-Ainda não implementado:
+## 13 LIMITAÇÕES CONHECIDAS
 
-- Persistência real para atividades, respostas, correções, presença, boletim e cronograma.
-- Integração real de IA.
-- Síntese de voz real para os botões de leitura.
-- Validações completas de formulários acadêmicos ainda mockados.
+- O dashboard ainda exibe alguns números e destaques estáticos.
+- A presença não é editada pela interface porque o fluxo exige identificar alunos da turma; essa composição ainda não possui um contrato dedicado no frontend.
+- Não há edição ou exclusão de atividade na interface, embora os endpoints existam.
+- Paginação usa limite de até 100 itens e ainda não possui controles visuais.
+- Recursos atribuídos à IA não chamam um serviço real.
+- A leitura em voz alta não executa síntese de voz.
+- O projeto não possui lint configurado.
 
-Status da etapa:
+## 14 PLANEJAMENTO
 
-- Finalização dos testes do frontend: concluída.
-- Padronização global de erros: concluída.
-- Validação de build e testes: concluída.
+Próximos incrementos sugeridos:
 
-## Limitações conhecidas
+1. integrar indicadores do dashboard;
+2. implementar chamada e registro de presença por turma;
+3. adicionar edição e exclusão de atividades;
+4. criar controles visuais de paginação e filtros;
+5. ampliar testes dos serviços e telas acadêmicas;
+6. integrar recursos de IA somente com contrato, consentimento e rastreabilidade definidos.
 
-- Grande parte do MVP ainda depende de `mockData.ts`.
-- As telas de correção e feedback exibem dados simulados; não há correção automática real.
-- Boletim, presença e cronograma são apenas representações visuais.
-- A tela de envio de atividade altera estado local, mas não envia dados para a API.
-- O formulário de atividade ainda não chama endpoint de criação.
-- O projeto não possui script de lint configurado.
-- A leitura em voz alta ainda não está conectada a Web Speech API ou serviço equivalente.
-- Comentários dependem de posts reais do backend; ao abrir conteúdo mockado, a seção mostra erro de recurso inexistente.
+## 15 REFERÊNCIAS NORMATIVAS
 
-## Tratamento de erros
-
-O modelo central de erro fica em `src/app/services/api.ts` como `AppError`, `ApiError`, `normalizeApiError` e `getFriendlyErrorMessage`. A normalização trata `400`, `401`, `403`, `404`, `409`, `422`, `429`, `500`, falha de rede, timeout e resposta inválida sem expor stack trace, token ou resposta bruta.
-
-Os estados visuais reutilizáveis ficam em `src/app/components/feedback.tsx`:
-
-- `ErrorState`: erro com título, mensagem, status, retry, voltar, variante compacta/página, `role="alert"` e foco opcional.
-- `FeedbackMessage`: sucesso, erro, aviso e informação com anúncio acessível e fechamento.
-- `LoadingState`: carregamento anunciado com `role="status"`.
-- `EmptyState`: estado vazio separado de erro.
-
-Comportamento global:
-
-- `401` em rota protegida ou `/auth/me`: limpa sessão, remove `luminia:authToken`, evita manter usuário inválido e mostra mensagem de sessão expirada.
-- `401` no login: é tratado como credenciais inválidas, sem encerrar uma sessão inexistente.
-- `403`: mantém sessão ativa, mostra acesso negado e não redireciona automaticamente para login.
-- Erro de rede ao restaurar sessão: a política atual encerra a sessão por segurança do MVP; essa decisão evita exibir conteúdo protegido quando não foi possível confirmar o usuário.
-
-## Como testar comentários
-
-1. No backend, rode `docker compose up -d`, `npm run seed` e `npm run dev`.
-2. No frontend, confirme `.env` com `VITE_API_URL=http://localhost:3000`.
-3. Rode `pnpm dev`.
-4. Faça login como aluno: `aluno@luminia.com` / `123456`.
-5. Abra `Conteúdos`, entre em um conteúdo real e crie um comentário.
-6. Edite o próprio comentário.
-7. Exclua o próprio comentário.
-8. Faça login como professor: `professor@luminia.com` / `123456`.
-9. Abra o mesmo conteúdo e valide listagem, criação e exclusão permitida de comentários no próprio post.
-
-## Como testar posts e perfis
-
-1. Faça login como professor.
-2. Acesse `Conteúdos`.
-3. Crie um post com título e texto.
-4. Edite o post criado.
-5. Exclua o post criado.
-6. Acesse `Perfil` e confirme dados reais de professor.
-7. Faça logout.
-8. Faça login como aluno.
-9. Acesse `Conteúdos` e abra um post real.
-10. Confirme que não há botões de criar, editar ou excluir post.
-11. Acesse `Perfil` e confirme matrícula/turma vindas da API.
-
-Estados tratados na interface:
-
-- carregando;
-- sucesso;
-- lista vazia;
-- erro de rede;
-- sessão expirada (`401`, com logout e redirecionamento para login);
-- sem permissão (`403`);
-- recurso não encontrado (`404`);
-- erro de validação;
-- confirmação antes de excluir.
-
-## Integrações concluídas
-
-| Funcionalidade | Situação | Endpoint |
-| --- | --- | --- |
-| Login | Integrado | `POST /auth/login` |
-| Sessão | Integrado | `GET /auth/me` |
-| Posts | Integrado | `GET /posts`, `GET /posts/:id`, `POST /posts`, `PUT /posts/:id`, `DELETE /posts/:id` |
-| Perfil aluno | Integrado | `GET /alunos/me` |
-| Perfil professor | Integrado | `GET /professores/me` |
-| Comentários | Integrado | `GET/POST /posts/:postId/comentarios`, `PUT/DELETE /comentarios/:id` |
-
-## Telas ainda mockadas
-
-- Atividades e envio de respostas.
-- Correções.
-- Presença.
-- Boletim detalhado.
-- Cronograma.
-- Feedback de IA.
-- Turmas e disciplinas estruturadas.
-
-Essas telas permanecem como demonstração visual enquanto não há endpoints correspondentes.
-
-## Testes
-
-Execute os testes automatizados:
-
-```bash
-pnpm test
-```
-
-Execute cobertura:
-
-```bash
-pnpm test:coverage
-```
-
-Execute também a build de produção:
-
-```bash
-pnpm build
-```
-
-A suíte validada nesta etapa possui 8 arquivos e 65 testes. Fluxos cobertos:
-
-- login de professor e aluno;
-- credenciais inválidas, falha de rede, campos obrigatórios e envio duplicado;
-- restauração de sessão, token ausente, token expirado, erro de rede e logout no `AuthContext`;
-- rotas protegidas, loading de sessão e proteção por role;
-- listagem de posts com loading, vazio, erro e retry;
-- permissões de aluno/professor em posts;
-- criação, edição, exclusão, cancelamento e erros de posts;
-- perfis de aluno e professor, estados vazios, erro e endpoint correto por role;
-- comentários com listar, criar, editar, excluir, cancelar exclusão, permissões, aluno/professor, loading, vazio, rede, `401` e `403`;
-- normalização central de erros e feedback visual acessível.
-
-Cobertura real em 2026-07-09:
-
-| Métrica | Cobertura |
-| --- | ---: |
-| Statements | 70.95% |
-| Branches | 64.12% |
-| Functions | 51.59% |
-| Lines | 71.36% |
-
-Limitação atual: não há script de lint nem typecheck dedicado no `package.json`; por isso a validação final executa `pnpm test`, `pnpm test:coverage` e `pnpm build`. Não foram adicionados thresholds de cobertura porque funções ainda ficariam abaixo de uma meta realista sem ampliar testes das telas acadêmicas mockadas.
-
-## Próximos passos
-
-1. Criar turmas e disciplinas.
-2. Integrar turmas e disciplinas ao frontend.
-3. Criar atividades e entregas.
-4. Criar correções, presença e boletim.
-5. Integrar IA por último.
-
-## Histórico de evolução
-
-- Base inicial do frontend: concluída.
-- Base inicial do backend: concluída.
-- MongoDB e seed: concluídos.
-- Autenticação JWT: concluída.
-- Autorização por role: concluída.
-- Integração real frontend-backend: concluída nesta etapa.
-- Comentários: implementados.
-- Testes automatizados do frontend: concluídos.
-- Padronização global de erros: concluída.
-- Validação de build e testes: concluída.
-- Funcionalidades acadêmicas: pendentes.
-- Integração com IA: pendente e planejada para o final.
-
-## Créditos
-
-Projeto desenvolvido para fins acadêmicos/hackathon.
-
-Nome do projeto: **Luminia**.
-
-O bundle visual inicial veio de um protótipo do Figma Community: `Luminiaprototicoapp (Community)`.
+- README do `LuminiaBack`, usado como padrão de organização documental;
+- documentação do contrato implementado nas rotas do backend;
+- WCAG 2.2 como referência para evolução de acessibilidade;
+- boas práticas do React, TypeScript, Vite e Testing Library.

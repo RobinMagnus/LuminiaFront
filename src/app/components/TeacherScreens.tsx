@@ -1,16 +1,18 @@
 import React, { FormEvent, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { BookOpen, CalendarDays, CheckSquare, FileText, PenTool, Sparkles, Users } from 'lucide-react';
-import { activities, attendance, classes, corrections, teacher } from '../data/mockData';
+import { BookOpen, CalendarDays, CheckSquare, FileText, PenTool, Users } from 'lucide-react';
+import { teacher } from '../data/mockData';
 import { useAuth } from '../contexts/AuthContext';
 import { usePostContent, usePostContents } from '../hooks/usePostContents';
 import { getFriendlyErrorMessage } from '../services/api';
 import { createPost, deletePost, updatePost } from '../services/postService';
 import { getMeuPerfilProfessor } from '../services/profileService';
+import { createAtividade, getAtividade, getCorrecao, getTurma, listAtividades, listDisciplinas, listEntregasAtividade, listTurmas, saveCorrecao } from '../services/academicService';
+import { useAcademicData } from '../hooks/useAcademicData';
 import { Professor } from '../types/api';
 import { ComentariosSection } from './ComentariosSection';
 import { EmptyState, ErrorState, FeedbackMessage, LoadingState } from './feedback';
-import { AITag, Badge, Button, Card, ProfileHeader, ReadAloudButton, SectionHeader } from './ui';
+import { Badge, Button, Card, ProfileHeader, ReadAloudButton, SectionHeader } from './ui';
 
 const BackButton = ({ to }: { to?: string }) => {
   const navigate = useNavigate();
@@ -64,23 +66,26 @@ export const TeacherDashboard = () => {
 
 export const TeacherActivities = () => {
   const navigate = useNavigate();
+  const { data, isLoading, error, reload } = useAcademicData(() => listAtividades());
   return (
     <div className="space-y-6 pb-20">
       <SectionHeader title="Atividades" subtitle="Histórico de atividades criadas e enviadas." />
       <Button onClick={() => navigate('/teacher/create')}>Criar nova atividade</Button>
       <div className="space-y-4">
-        {activities.map(activity => (
-          <Card key={activity.id} tabIndex={0} className="focus:outline-none focus:ring-2 focus:ring-primary">
+        {isLoading ? <LoadingState message="Carregando atividades..." /> : null}
+        {error ? <ErrorState title="Não foi possível carregar as atividades" message={error} onRetry={reload} compact /> : null}
+        {!isLoading && !error && !data?.dados.length ? <EmptyState title="Nenhuma atividade criada." /> : null}
+        {data?.dados.map(activity => (
+          <Card key={activity._id} tabIndex={0} className="focus:outline-none focus:ring-2 focus:ring-primary">
             <div className="flex justify-between gap-3 mb-3">
               <div>
-                <Badge variant={activity.status === "Corrigida" ? "success" : "warning"}>{activity.status}</Badge>
-                <h3 className="font-medium text-foreground text-base mt-2">{activity.title}</h3>
-                <p className="text-sm text-muted-foreground">{activity.className} | {activity.subject}</p>
+                <Badge variant={activity.status === 'publicada' ? 'success' : 'warning'}>{activity.status}</Badge>
+                <h3 className="font-medium text-foreground text-base mt-2">{activity.titulo}</h3>
+                <p className="text-sm text-muted-foreground">{activity.turma} | {activity.disciplina}</p>
               </div>
-              <span className="text-sm text-muted-foreground">{activity.sentAt}</span>
+              <span className="text-sm text-muted-foreground">{new Date(activity.prazo).toLocaleDateString('pt-BR')}</span>
             </div>
-            <p className="text-sm text-foreground mb-4">{activity.submissions} de {activity.totalStudents} alunos enviaram</p>
-            <Button variant="outline" className="!py-2.5" onClick={() => navigate(`/teacher/activity/${activity.id}`)}>Ver detalhes</Button>
+            <Button variant="outline" className="!py-2.5" onClick={() => navigate(`/teacher/activity/${activity._id}`)}>Ver detalhes</Button>
           </Card>
         ))}
       </div>
@@ -90,14 +95,17 @@ export const TeacherActivities = () => {
 
 export const TeacherActivityDetail = () => {
   const { id } = useParams();
-  const activity = activities.find(item => item.id === id) || activities[0];
+  const { data, isLoading, error, reload } = useAcademicData(async () => ({ activity: await getAtividade(id!), deliveries: (await listEntregasAtividade(id!)).dados }), [id]);
+  if (isLoading) return <LoadingState message="Carregando atividade..." />;
+  if (error || !data) return <div className="space-y-4"><BackButton to="/teacher/activities" /><ErrorState title="Não foi possível abrir a atividade" message={error || 'Atividade não encontrada.'} onRetry={reload} compact /></div>;
+  const { activity, deliveries } = data;
   return (
     <div className="space-y-6 pb-20">
       <header className="flex items-center gap-3">
         <BackButton to="/teacher/activities" />
         <div>
-          <h1 className="text-xl font-medium text-foreground">{activity.title}</h1>
-          <p className="text-base text-muted-foreground">{activity.className} | {activity.subject}</p>
+          <h1 className="text-xl font-medium text-foreground">{activity.titulo}</h1>
+          <p className="text-base text-muted-foreground">{activity.turma} | {activity.disciplina}</p>
         </div>
       </header>
       <Card>
@@ -105,11 +113,11 @@ export const TeacherActivityDetail = () => {
           <h2 className="font-medium text-lg">Enunciado</h2>
           <ReadAloudButton label="Ouvir texto" />
         </div>
-        <p className="text-base leading-relaxed text-foreground">{activity.statement}</p>
+        <p className="text-base leading-relaxed text-foreground">{activity.enunciado}</p>
       </Card>
       <Card>
         <h2 className="font-medium text-lg mb-3">Resumo de envio</h2>
-        <p className="text-muted-foreground">{activity.submissions} de {activity.totalStudents} alunos já enviaram. Correções podem ser feitas manualmente ou com apoio da IA.</p>
+        <p className="text-muted-foreground">{deliveries.length} entrega(s): {deliveries.filter(item => item.status === 'corrigida').length} corrigida(s) e {deliveries.filter(item => item.status === 'entregue').length} pendente(s).</p>
       </Card>
     </div>
   );
@@ -121,8 +129,18 @@ export const TeacherCreateActivity = () => (
 
 const TeacherForm = ({ title, submitLabel, secondaryLabel }: { title: string; submitLabel: string; secondaryLabel?: string }) => {
   const navigate = useNavigate();
+  const [form, setForm] = useState({ titulo: '', turma: '', disciplina: '', prazo: '', enunciado: '' });
+  const [status, setStatus] = useState<'rascunho' | 'publicada'>('publicada');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault(); setError(''); setIsSubmitting(true);
+    try { await createAtividade({ ...form, prazo: new Date(form.prazo).toISOString(), status }); navigate('/teacher/activities'); }
+    catch (submitError) { setError(getFriendlyErrorMessage(submitError)); }
+    finally { setIsSubmitting(false); }
+  };
   return (
-    <div className="space-y-6 pb-20">
+    <form onSubmit={submit} className="space-y-6 pb-20">
       <header className="flex items-center gap-3">
         <BackButton to="/teacher" />
         <div>
@@ -130,19 +148,18 @@ const TeacherForm = ({ title, submitLabel, secondaryLabel }: { title: string; su
           <p className="text-base text-muted-foreground">Campos simples para o MVP.</p>
         </div>
       </header>
-      {["Título", "Turma", "Matéria", "Data de entrega"].map(label => (
-        <label key={label} className="block space-y-2">
-          <span>{label}</span>
-          <input className="w-full bg-card border border-border rounded-xl p-4 text-base focus:outline-none focus:ring-2 focus:ring-primary" placeholder={label} />
-        </label>
-      ))}
+      {error ? <FeedbackMessage type="error" message={error} compact /> : null}
+      <label className="block space-y-2"><span>Título</span><input required value={form.titulo} onChange={e => setForm({ ...form, titulo: e.target.value })} className="w-full bg-card border border-border rounded-xl p-4" /></label>
+      <label className="block space-y-2"><span>Turma</span><input required value={form.turma} onChange={e => setForm({ ...form, turma: e.target.value })} className="w-full bg-card border border-border rounded-xl p-4" /></label>
+      <label className="block space-y-2"><span>Matéria</span><input required value={form.disciplina} onChange={e => setForm({ ...form, disciplina: e.target.value })} className="w-full bg-card border border-border rounded-xl p-4" /></label>
+      <label className="block space-y-2"><span>Data de entrega</span><input required type="datetime-local" value={form.prazo} onChange={e => setForm({ ...form, prazo: e.target.value })} className="w-full bg-card border border-border rounded-xl p-4" /></label>
       <label className="block space-y-2">
         <span>Enunciado</span>
-        <textarea className="w-full bg-card border border-border rounded-xl p-4 min-h-[150px] focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Escreva as instruções para os alunos." />
+        <textarea required value={form.enunciado} onChange={e => setForm({ ...form, enunciado: e.target.value })} className="w-full bg-card border border-border rounded-xl p-4 min-h-[150px] focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Escreva as instruções para os alunos." />
       </label>
-      {secondaryLabel ? <Button variant="outline">{secondaryLabel}</Button> : null}
-      <Button onClick={() => navigate('/teacher/activities')}>{submitLabel}</Button>
-    </div>
+      {secondaryLabel ? <Button type="submit" variant="outline" onClick={() => setStatus('rascunho')} disabled={isSubmitting}>{secondaryLabel}</Button> : null}
+      <Button type="submit" onClick={() => setStatus('publicada')} disabled={isSubmitting}>{isSubmitting ? 'Salvando...' : submitLabel}</Button>
+    </form>
   );
 };
 
@@ -365,18 +382,18 @@ export const TeacherContentDetail = () => {
 
 export const TeacherCorrectionsClasses = () => {
   const navigate = useNavigate();
+  const { data, isLoading, error, reload } = useAcademicData(() => listTurmas());
   return (
     <div className="space-y-6 pb-20">
       <SectionHeader title="Correções" subtitle="Escolha uma turma para revisar entregas." />
-      {classes.map(item => (
-        <Card key={item.id}>
-          <h3 className="font-medium text-lg">{item.name}</h3>
-          <p className="text-sm text-muted-foreground mb-4">{item.subject}</p>
-          <div className="flex gap-6 mb-5">
-            <div><span className="block text-2xl font-medium text-accent">{item.pending}</span><span className="text-sm text-muted-foreground">Pendentes</span></div>
-            <div><span className="block text-2xl font-medium text-primary">{item.corrected}</span><span className="text-sm text-muted-foreground">Corrigidas</span></div>
-          </div>
-          <Button onClick={() => navigate(`/teacher/corrections/${item.id}`)}>Ver correções</Button>
+      {isLoading ? <LoadingState message="Carregando turmas..." /> : null}
+      {error ? <ErrorState title="Não foi possível carregar as turmas" message={error} onRetry={reload} compact /> : null}
+      {!isLoading && !error && !data?.dados.length ? <EmptyState title="Nenhuma turma atribuída." /> : null}
+      {data?.dados.map(item => (
+        <Card key={item._id}>
+          <h3 className="font-medium text-lg">{item.nome}</h3>
+          <p className="text-sm text-muted-foreground mb-4">{item.codigo} | {item.anoLetivo} | {item.turno}</p>
+          <Button onClick={() => navigate(`/teacher/corrections/${item._id}`)}>Ver correções</Button>
         </Card>
       ))}
     </div>
@@ -384,38 +401,42 @@ export const TeacherCorrectionsClasses = () => {
 };
 
 export const TeacherCorrectionsList = () => {
-  const { classId = "3a" } = useParams();
+  const { classId = '' } = useParams();
   const navigate = useNavigate();
-  const selected = classes.find(item => item.id === classId) || classes[0];
-  const list = corrections.filter(item => item.classId === selected.id);
+  const { data, isLoading, error, reload } = useAcademicData(async () => {
+    const turma = await getTurma(classId);
+    const atividades = (await listAtividades({ turma: turma.codigo })).dados;
+    const listas = await Promise.all(atividades.map(item => listEntregasAtividade(item._id)));
+    return { turma, entregas: listas.flatMap(item => item.dados) };
+  }, [classId]);
   return (
     <div className="space-y-6 pb-20">
       <header className="flex items-center gap-3">
         <BackButton to="/teacher/corrections" />
         <div>
-          <h1 className="text-xl font-medium text-foreground">{selected.name}</h1>
+          <h1 className="text-xl font-medium text-foreground">{data?.turma.nome || 'Correções'}</h1>
           <p className="text-base text-muted-foreground">Atividades da turma</p>
         </div>
       </header>
-      {list.map(item => (
-        <Card key={item.id}>
+      {isLoading ? <LoadingState message="Carregando entregas..." /> : null}
+      {error ? <ErrorState title="Não foi possível carregar as entregas" message={error} onRetry={reload} compact /> : null}
+      {!isLoading && !error && !data?.entregas.length ? <EmptyState title="Nenhuma entrega nesta turma." /> : null}
+      {data?.entregas.map(item => {
+        const atividade = typeof item.atividadeId === 'string' ? null : item.atividadeId;
+        const aluno = typeof item.alunoId === 'string' ? null : item.alunoId;
+        return <Card key={item._id}>
           <div className="flex justify-between gap-3">
             <div>
-              <Badge variant={item.status === "Corrigida" ? "success" : "warning"}>{item.status}</Badge>
-              <h3 className="font-medium text-base mt-2">{item.activity}</h3>
-              <p className="text-sm text-muted-foreground">{item.student}</p>
-            </div>
-            <div className="text-right">
-              <span className="text-xs text-muted-foreground">IA</span>
-              <p className="font-medium text-primary">{item.aiScore}</p>
-              {item.teacherScore ? <p className="text-sm text-foreground">Prof. {item.teacherScore}</p> : null}
+              <Badge variant={item.status === 'corrigida' ? 'success' : 'warning'}>{item.status === 'corrigida' ? 'Corrigida' : 'Pendente'}</Badge>
+              <h3 className="font-medium text-base mt-2">{atividade?.titulo || 'Atividade'}</h3>
+              <p className="text-sm text-muted-foreground">{aluno?.nome || 'Aluno'}</p>
             </div>
           </div>
-          <Button className="mt-4" variant={item.status === "Corrigida" ? "outline" : "primary"} onClick={() => navigate(`/teacher/correction/${item.id}`)}>
-            {item.status === "Corrigida" ? "Revisar correção" : "Corrigir"}
+          <Button className="mt-4" variant={item.status === 'corrigida' ? 'outline' : 'primary'} onClick={() => navigate(`/teacher/correction/${item._id}`)}>
+            {item.status === 'corrigida' ? 'Revisar correção' : 'Corrigir'}
           </Button>
-        </Card>
-      ))}
+        </Card>;
+      })}
     </div>
   );
 };
@@ -423,42 +444,47 @@ export const TeacherCorrectionsList = () => {
 export const TeacherCorrection = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const item = corrections.find(correction => correction.id === id) || corrections[0];
-  const [teacherScore, setTeacherScore] = useState(item.teacherScore || "8.0");
-  const diff = Math.abs(Number(teacherScore || 0) - item.aiScore).toFixed(1);
+  const { data: item, isLoading, error, reload } = useAcademicData(async () => {
+    const atividades = (await listAtividades()).dados;
+    const entregas = (await Promise.all(atividades.map(item => listEntregasAtividade(item._id)))).flatMap(item => item.dados);
+    const entrega = entregas.find(item => item._id === id);
+    if (!entrega) throw new Error('Entrega não encontrada.');
+    let correcao = null;
+    if (entrega.status === 'corrigida') correcao = await getCorrecao(entrega._id);
+    return { entrega, correcao };
+  }, [id]);
+  const [teacherScore, setTeacherScore] = useState('');
+  const [feedback, setFeedback] = useState('');
+  const [submitError, setSubmitError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  useEffect(() => { if (item?.correcao) { setTeacherScore(String(item.correcao.nota)); setFeedback(item.correcao.feedback); } }, [item]);
+  if (isLoading) return <LoadingState message="Carregando entrega..." />;
+  if (error || !item) return <div className="space-y-4"><BackButton /><ErrorState title="Não foi possível abrir a entrega" message={error || 'Entrega não encontrada.'} onRetry={reload} compact /></div>;
+  const atividade = typeof item.entrega.atividadeId === 'string' ? null : item.entrega.atividadeId;
+  const aluno = typeof item.entrega.alunoId === 'string' ? null : item.entrega.alunoId;
+  const submit = async () => {
+    setSubmitError(''); setIsSubmitting(true);
+    try { await saveCorrecao(item.entrega._id, Number(teacherScore), feedback.trim()); navigate('/teacher/corrections'); }
+    catch (saveError) { setSubmitError(getFriendlyErrorMessage(saveError)); }
+    finally { setIsSubmitting(false); }
+  };
   return (
     <div className="space-y-6 pb-20">
       <header className="flex items-center gap-3">
         <BackButton />
         <div>
           <h1 className="text-xl font-medium text-foreground">Corrigir atividade</h1>
-          <p className="text-base text-muted-foreground">{item.student} | {item.activity}</p>
+          <p className="text-base text-muted-foreground">{aluno?.nome || 'Aluno'} | {atividade?.titulo || 'Atividade'}</p>
         </div>
       </header>
       <Card>
         <div className="flex justify-between mb-3"><h2 className="font-medium text-lg">Resposta enviada</h2><ReadAloudButton label="Ouvir texto" /></div>
-        <p className="leading-relaxed">{item.answer}</p>
+        <p className="leading-relaxed">{item.entrega.resposta}</p>
       </Card>
-      <Button variant="secondary" className="flex items-center justify-center gap-2"><Sparkles size={18} aria-hidden="true" /> Solicitar correção pela IA</Button>
-      <div className="grid grid-cols-3 gap-3">
-        <Card className="p-4"><AITag /><p className="text-3xl font-medium text-primary mt-2">{item.aiScore}</p><p className="text-xs text-muted-foreground">Nota da IA</p></Card>
-        <Card className="p-4 border-primary"><label htmlFor="score" className="text-xs text-primary">Nota professor</label><input id="score" value={teacherScore} onChange={e => setTeacherScore(e.target.value)} className="w-full text-3xl font-medium bg-transparent focus:outline-none" /></Card>
-        <Card className="p-4"><p className="text-3xl font-medium text-accent">{diff}</p><p className="text-xs text-muted-foreground">Diferença</p></Card>
-      </div>
-      <Card>
-        <div className="flex justify-between mb-3"><h2 className="font-medium text-lg">Comentários da IA</h2><ReadAloudButton label="Ouvir feedback" /></div>
-        <p className="text-base leading-relaxed">A IA identificou confusão na fórmula F = m x a e sugere revisar isolamento de variáveis.</p>
-      </Card>
-      <Card>
-        <div className="flex justify-between mb-3"><h2 className="font-medium text-lg">Explicação dos erros</h2><ReadAloudButton label="Ouvir texto" /></div>
-        <p className="text-base leading-relaxed">O aluno dividiu massa por aceleração. O correto é dividir a força pela massa para encontrar a aceleração.</p>
-      </Card>
-      <Card>
-        <div className="flex justify-between mb-3"><h2 className="font-medium text-lg">Pontos para estudar</h2><ReadAloudButton label="Ouvir texto" /></div>
-        <ul className="space-y-2 text-base"><li>Segunda Lei de Newton</li><li>Isolamento de variáveis</li><li>Unidades de medida</li></ul>
-      </Card>
-      <label className="block space-y-2"><span>Comentário do professor</span><textarea className="w-full bg-card border border-border rounded-xl p-4 min-h-[120px] focus:outline-none focus:ring-2 focus:ring-primary" defaultValue="A nota final é do professor. Revise a fórmula correta e tente refazer o cálculo." /></label>
-      <Button onClick={() => navigate('/teacher/corrections')}>Confirmar correção</Button>
+      {submitError ? <FeedbackMessage type="error" message={submitError} compact /> : null}
+      <Card className="p-4 border-primary"><label htmlFor="score" className="text-sm text-primary">Nota do professor (0 a 10)</label><input id="score" type="number" min="0" max="10" step="0.1" value={teacherScore} onChange={e => setTeacherScore(e.target.value)} className="w-full text-3xl font-medium bg-transparent focus:outline-none" /></Card>
+      <label className="block space-y-2"><span>Comentário do professor</span><textarea value={feedback} onChange={e => setFeedback(e.target.value)} className="w-full bg-card border border-border rounded-xl p-4 min-h-[120px] focus:outline-none focus:ring-2 focus:ring-primary" /></label>
+      <Button onClick={submit} disabled={isSubmitting || !feedback.trim() || teacherScore === ''}>{isSubmitting ? 'Salvando...' : 'Confirmar correção'}</Button>
     </div>
   );
 };
@@ -469,6 +495,7 @@ export const TeacherProfile = () => {
   const [profile, setProfile] = useState<Professor | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [profileError, setProfileError] = useState('');
+  const { data: turmas, isLoading: isLoadingTurmas, error: turmasError, reload: reloadTurmas } = useAcademicData(() => listTurmas());
   const name = profile?.nome || user?.nome || teacher.name;
   const initials = name
     .split(' ')
@@ -521,12 +548,14 @@ export const TeacherProfile = () => {
       </Card>
       <section className="space-y-4">
         <h2 className="text-lg font-medium">Turmas atribuídas</h2>
-        <Badge variant="warning">Demonstração visual — integração pendente</Badge>
-        {classes.map(item => (
-          <Card key={item.id}>
-            <h3 className="font-medium">{item.name}</h3>
-            <p className="text-sm text-muted-foreground mb-4">{item.subject} | {item.students} alunos</p>
-            <Button variant="outline" onClick={() => navigate(`/teacher/class/${item.id}`)}>Acessar turma</Button>
+        {isLoadingTurmas ? <LoadingState message="Carregando turmas..." /> : null}
+        {turmasError ? <ErrorState title="Não foi possível carregar as turmas" message={turmasError} onRetry={reloadTurmas} compact /> : null}
+        {!isLoadingTurmas && !turmasError && !turmas?.dados.length ? <EmptyState title="Nenhuma turma atribuída." /> : null}
+        {turmas?.dados.map(item => (
+          <Card key={item._id}>
+            <h3 className="font-medium">{item.nome}</h3>
+            <p className="text-sm text-muted-foreground mb-4">{item.codigo} | {item.anoLetivo} | {item.turno}</p>
+            <Button variant="outline" onClick={() => navigate(`/teacher/class/${item._id}`)}>Acessar turma</Button>
           </Card>
         ))}
       </section>
@@ -535,48 +564,36 @@ export const TeacherProfile = () => {
 };
 
 export const TeacherClassDetail = () => {
-  const { classId = "3a" } = useParams();
-  const selected = classes.find(item => item.id === classId) || classes[0];
+  const { classId = '' } = useParams();
+  const { data, isLoading, error, reload } = useAcademicData(async () => {
+    const turma = await getTurma(classId);
+    const [disciplinas, atividades] = await Promise.all([listDisciplinas(classId), listAtividades({ turma: turma.codigo })]);
+    return { turma, disciplinas: disciplinas.dados, atividades: atividades.dados };
+  }, [classId]);
+  if (isLoading) return <LoadingState message="Carregando turma..." />;
+  if (error || !data) return <div className="space-y-4"><BackButton to="/teacher/profile" /><ErrorState title="Não foi possível abrir a turma" message={error || 'Turma não encontrada.'} onRetry={reload} compact /></div>;
   return (
     <div className="space-y-6 pb-20">
-      <header className="flex items-center gap-3"><BackButton to="/teacher/profile" /><div><h1 className="text-xl font-medium">{selected.name}</h1><p className="text-muted-foreground">{selected.subject}</p></div></header>
+      <header className="flex items-center gap-3"><BackButton to="/teacher/profile" /><div><h1 className="text-xl font-medium">{data.turma.nome}</h1><p className="text-muted-foreground">{data.turma.codigo} | {data.turma.anoLetivo}</p></div></header>
       <Card>
-        <div className="flex items-center gap-2 mb-4"><CalendarDays size={18} className="text-primary" /><h2 className="font-medium text-lg">Lista de presença</h2></div>
-        <p className="text-sm text-muted-foreground mb-3">Chamada de hoje</p>
-        <div className="space-y-3">
-          {attendance.map(item => (
-            <div key={item.name} className="flex items-center justify-between rounded-xl bg-input-background p-3">
-              <span>{item.name}</span>
-              <div className="flex gap-2" role="group" aria-label={`Presença de ${item.name}`}>
-                <button className={`px-3 py-1 rounded-lg text-sm ${item.present ? "bg-primary text-white" : "bg-card text-muted-foreground"}`}>Presença</button>
-                <button className={`px-3 py-1 rounded-lg text-sm ${!item.present ? "bg-accent text-white" : "bg-card text-muted-foreground"}`}>Falta</button>
-              </div>
-            </div>
-          ))}
-        </div>
+        <div className="flex items-center gap-2 mb-4"><CalendarDays size={18} className="text-primary" /><h2 className="font-medium text-lg">Dados da turma</h2></div>
+        <p className="text-sm text-muted-foreground">Turno: {data.turma.turno} | Situação: {data.turma.ativa ? 'Ativa' : 'Inativa'}</p>
+        {data.turma.descricao ? <p className="text-sm text-muted-foreground mt-2">{data.turma.descricao}</p> : null}
       </Card>
       <Card>
-        <h2 className="font-medium text-lg mb-3">Notas e comentários</h2>
-        <div className="space-y-3">
-          {["Maria Souza", "João Silva", "Lia Martins"].map((name, index) => (
-            <div key={name} className="border-b border-border last:border-0 pb-3 last:pb-0">
-              <p className="font-medium">{name}</p>
-              <p className="text-sm text-muted-foreground">Última nota: {index === 0 ? "7.5" : "8.0"} | Média: 7.{index + 1}</p>
-              <p className="text-sm text-muted-foreground">Feedback da IA disponível para revisão.</p>
-            </div>
-          ))}
-        </div>
+        <h2 className="font-medium text-lg mb-3">Disciplinas</h2>
+        <div className="space-y-3">{data.disciplinas.map(item => <div key={item._id} className="rounded-xl bg-input-background p-3"><strong>{item.nome}</strong><p className="text-sm text-muted-foreground">{item.codigo} | {item.cargaHoraria} horas</p></div>)}</div>
       </Card>
       <Card>
         <h2 className="font-medium text-lg mb-3">Histórico de atividades</h2>
         <div className="space-y-3">
-          {activities.filter(activity => activity.className.includes(selected.name.replace("Turma ", ""))).map(activity => (
-            <div key={activity.id} className="rounded-xl bg-input-background p-3">
+          {data.atividades.map(activity => (
+            <div key={activity._id} className="rounded-xl bg-input-background p-3">
               <div className="flex justify-between gap-3">
-                <strong>{activity.title}</strong>
-                <Badge variant={activity.status === "Corrigida" ? "success" : "warning"}>{activity.status}</Badge>
+                <strong>{activity.titulo}</strong>
+                <Badge variant={activity.status === 'publicada' ? 'success' : 'warning'}>{activity.status}</Badge>
               </div>
-              <p className="text-sm text-muted-foreground">{activity.subject} | {activity.submissions} de {activity.totalStudents} entregas</p>
+              <p className="text-sm text-muted-foreground">{activity.disciplina} | prazo {new Date(activity.prazo).toLocaleDateString('pt-BR')}</p>
             </div>
           ))}
         </div>

@@ -28,6 +28,17 @@ type PostMutationResponse = {
   post: Post;
 };
 
+type PostsResponse = {
+  dados: Post[];
+  paginacao: {
+    pagina: number;
+    limite: number;
+    total: number;
+    itens: number;
+    totalPaginas: number;
+  };
+};
+
 function formatDate(value?: string) {
   if (!value) {
     return 'Hoje';
@@ -56,8 +67,8 @@ function mapPost(post: Post): ContentItem {
 }
 
 export async function listPosts() {
-  const posts = await apiFetch<Post[]>('/posts');
-  return posts.map(mapPost);
+  const response = await apiFetch<PostsResponse>('/posts');
+  return response.dados.map(mapPost);
 }
 
 export async function getPost(id: string) {

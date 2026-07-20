@@ -19,6 +19,13 @@ export type Comentario = {
 
 type ComentariosResponse = {
   dados: Comentario[];
+  paginacao: {
+    pagina: number;
+    limite: number;
+    total: number;
+    itens: number;
+    totalPaginas: number;
+  };
 };
 
 type ComentarioResponse = {
