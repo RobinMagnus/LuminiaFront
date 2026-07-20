@@ -2,84 +2,113 @@
 
 Frontend do **Luminia**, plataforma educacional com experiências separadas para professores e alunos. O projeto foi criado como MVP acadêmico/hackathon, com interface mobile first, autenticação[...]
 
-O bundle visual inicial veio de um protótipo do Figma Community: `Luminiaprototicoapp (Community)`.
+> Observação: a pasta local deste repositório está nomeada como `LuminiaFront`.
 
-## Sobre o projeto
+## SUMÁRIO
 
-O frontend organiza a navegação de dois perfis:
+1. [Apresentação](#1-apresentação)
+2. [Tecnologias utilizadas](#2-tecnologias-utilizadas)
+3. [Scripts disponíveis](#3-scripts-disponíveis)
+4. [Fluxo de desenvolvimento](#4-fluxo-de-desenvolvimento)
+5. [Instalação e configuração](#5-instalação-e-configuração)
+6. [Execução da aplicação](#6-execução-da-aplicação)
+7. [Autenticação e rotas](#7-autenticação-e-rotas)
+8. [Integração com a API](#8-integração-com-a-api)
+9. [Testes e qualidade](#9-testes-e-qualidade)
+10. [Estrutura do projeto](#10-estrutura-do-projeto)
+11. [Tratamento de erros e acessibilidade](#11-tratamento-de-erros-e-acessibilidade)
+12. [Mapeamento da implantação](#12-mapeamento-da-implantação)
+13. [Limitações conhecidas](#13-limitações-conhecidas)
+14. [Planejamento](#14-planejamento)
+15. [Referências normativas](#15-referências-normativas)
 
-- professor: dashboard, atividades, conteúdos, correções e perfil;
-- aluno: dashboard, conteúdos, atividades, feedback e perfil.
+## 1 APRESENTAÇÃO
 
-Parte da aplicação já consome o backend real. Outras telas ainda usam dados mockados para demonstrar o produto sem depender de endpoints que ainda não existem.
+Este documento registra os requisitos de execução, a organização técnica, as rotas da interface e o estado de integração do frontend. A estrutura segue o padrão documental do repositório de backend, com numeração progressiva e seções equivalentes.
 
-Nesta etapa, autenticação, sessão, posts/conteúdos e perfis básicos estão integrados ao backend real.
+O projeto é um MVP mobile first desenvolvido a partir do protótipo `Luminiaprototicoapp (Community)`. Os dados operacionais vêm do backend; os recursos de IA permanecem apenas como direcionamento de produto.
 
-## Tecnologias usadas
+## 2 TECNOLOGIAS UTILIZADAS
 
-Tecnologias identificadas nos arquivos reais do projeto:
+- React 18 e TypeScript;
+- Vite 6;
+- React Router;
+- Tailwind CSS;
+- Lucide React;
+- componentes Radix UI e Material UI;
+- Fetch API com cliente HTTP centralizado;
+- Vitest, Testing Library e cobertura V8;
+- pnpm;
+- GitHub Actions para integração contínua.
 
-| Tecnologia | Uso |
-| --- | --- |
-| React | Construção da interface em componentes. |
-| TSX/TypeScript | Componentes e serviços escritos em arquivos `.tsx` e `.ts`. |
-| Vite | Servidor de desenvolvimento e build. |
-| React Router | Rotas, navegação e proteção de áreas por perfil. |
-| Tailwind CSS | Estilização por utilitários e tema visual. |
-| Lucide React | Ícones da interface. |
-| Radix UI | Dependências de componentes acessíveis presentes no projeto. |
-| Material UI | Dependências `@mui/*` presentes no projeto. |
-| pnpm | Gerenciador de pacotes usado pelo lockfile e workspace. |
-| GitHub Actions | CI do frontend com instalação e build. |
-| Vitest | Testes automatizados de comportamento. |
-| Testing Library | Testes da interface de comentários. |
-| Fetch API | Comunicação HTTP centralizada em `apiFetch`. |
-
-## Scripts disponíveis
-
-Scripts reais definidos no `package.json`:
+## 3 SCRIPTS DISPONÍVEIS
 
 | Comando | Descrição |
 | --- | --- |
 | `pnpm dev` | Inicia o servidor de desenvolvimento Vite. |
-| `pnpm build` | Gera a build de produção com Vite. |
-| `pnpm test` | Executa testes com Vitest e Testing Library. |
-| `pnpm test:coverage` | Executa testes com relatório de cobertura V8 do Vitest. |
+| `pnpm build` | Gera o bundle de produção. |
+| `pnpm test` | Executa os testes uma vez com Vitest. |
+| `pnpm test:coverage` | Executa os testes e gera cobertura V8. |
 
 Não há script de lint configurado atualmente.
 
-## Instalação
+## 4 FLUXO DE DESENVOLVIMENTO
 
-Pré-requisitos:
+Atualize `develop` e crie uma branch de funcionalidade:
 
-- Node.js instalado;
-- pnpm instalado.
+```bash
+git switch develop
+git pull origin develop
+git switch -c feature/nome-da-feature
+```
 
-Instale as dependências:
+Após concluir e validar a alteração:
+
+```bash
+git push -u origin feature/nome-da-feature
+```
+
+O workflow em `.github/workflows/frontend-ci.yml` instala as dependências com lockfile congelado e valida a build. As regras de Pull Request e proteção de branches devem ser mantidas alinhadas às descritas no backend.
+
+## 5 INSTALAÇÃO E CONFIGURAÇÃO
+
+### 5.1 Pré-requisitos
+
+- Node.js 20 ou versão compatível;
+- pnpm;
+- Luminia Backend e MongoDB para os fluxos integrados.
+
+### 5.2 Instalação das dependências
 
 ```bash
 pnpm install
 ```
 
-Inicie o servidor de desenvolvimento:
+Em CI, use instalação reproduzível:
 
 ```bash
-pnpm dev
+pnpm install --frozen-lockfile
 ```
 
-Por padrão, o Vite disponibiliza a aplicação em:
+### 5.3 Variável de ambiente
 
-```txt
-http://localhost:5173/
-```
-
-Gere a build de produção:
+Crie o arquivo local a partir do exemplo:
 
 ```bash
-pnpm build
+cp .env.example .env
 ```
 
-Para executar o fluxo integrado, suba também o backend em outro terminal:
+Configuração padrão:
+
+```env
+VITE_API_URL=http://localhost:3000
+```
+
+`VITE_API_URL` define a URL base usada pelos serviços. Em dispositivo físico, use o IP local da máquina no lugar de `localhost`. No backend, inclua a origem do Vite em `CORS_ORIGIN`.
+
+## 6 EXECUÇÃO DA APLICAÇÃO
+
+Prepare primeiro o backend:
 
 ```bash
 cd ../LuminiaBack
@@ -89,77 +118,51 @@ npm run seed
 npm run dev
 ```
 
-## Variáveis de ambiente
-
-O frontend possui `.env.example` com:
-
-```env
-VITE_API_URL=http://localhost:3000
-```
-
-Crie o `.env` local:
+Em outro terminal, inicie o frontend:
 
 ```bash
-cp .env.example .env
+cd ../LuminiaFront
+pnpm dev
 ```
 
-`VITE_API_URL` define a URL base da API usada pelos serviços em `src/app/services/`.
+A interface fica disponível, por padrão, em `http://localhost:5173`.
 
-Problemas comuns:
-
-- se o login falhar por rede, confirme se o backend está rodando em `http://localhost:3000`;
-- se houver erro de CORS, confirme se `CORS_ORIGIN` no backend inclui `http://localhost:5173`;
-- em dispositivo físico, `localhost` aponta para o próprio dispositivo. Use o IP local da máquina, por exemplo `VITE_API_URL=http://192.168.x.x:3000`, sem fixar esse IP no código.
-
-## Telas e rotas disponíveis
-
-### Login
-
-| Rota | Descrição |
-| --- | --- |
-| `/` | Tela de login com email e senha. |
-
-O login usa o backend real em `POST /auth/login`. Após autenticação:
-
-- usuário com role `professor` é redirecionado para `/teacher`;
-- usuário com role `aluno` é redirecionado para `/student`.
-
-O token JWT é armazenado em `localStorage` como decisão de MVP web. Em produção, recomenda-se reavaliar a estratégia e considerar cookies `HttpOnly` conforme os requisitos de segurança.
-
-## Credenciais de teste
-
-Credenciais criadas pelo seed local do backend, apenas para desenvolvimento:
+Credenciais criadas pelo seed local:
 
 | Perfil | Email | Senha |
 | --- | --- | --- |
 | Professor | `professor@luminia.com` | `123456` |
 | Aluno | `aluno@luminia.com` | `123456` |
 
-Não use essas credenciais em produção.
+Essas credenciais são exclusivas para desenvolvimento.
 
-### Área do professor
+## 7 AUTENTICAÇÃO E ROTAS
 
-Rotas protegidas para usuário com role `professor`:
+### 7.1 Sessão
+
+O login usa `POST /auth/login` e a restauração de sessão usa `GET /auth/me`. O JWT é armazenado em `localStorage` sob a chave `luminia:authToken` e enviado automaticamente como Bearer Token.
+
+Rotas protegidas verificam autenticação e role. Um `401` encerra a sessão; um `403` preserva a sessão e exibe acesso negado.
+
+### 7.2 Área do professor
 
 | Rota | Tela |
 | --- | --- |
-| `/teacher` | Dashboard do professor. |
-| `/teacher/activities` | Lista de atividades. |
-| `/teacher/activity/:id` | Detalhe de atividade. |
-| `/teacher/create` | Formulário visual de criação de atividade. |
-| `/teacher/contents` | Lista de conteúdos. |
-| `/teacher/content/new` | Formulário visual de novo conteúdo. |
-| `/teacher/content/:id/edit` | Formulário de edição de conteúdo próprio. |
-| `/teacher/content/:id` | Detalhe de conteúdo. |
-| `/teacher/corrections` | Lista de turmas para correção. |
-| `/teacher/corrections/:classId` | Lista de correções por turma. |
-| `/teacher/correction/:id` | Tela visual de correção. |
-| `/teacher/profile` | Perfil do professor e logout. |
-| `/teacher/class/:classId` | Detalhe visual da turma. |
+| `/teacher` | Dashboard. |
+| `/teacher/activities` | Atividades reais do professor. |
+| `/teacher/activity/:id` | Detalhe e resumo de entregas. |
+| `/teacher/create` | Criação de atividade publicada ou rascunho. |
+| `/teacher/contents` | Conteúdos publicados. |
+| `/teacher/content/new` | Criação de conteúdo. |
+| `/teacher/content/:id/edit` | Edição de conteúdo próprio. |
+| `/teacher/content/:id` | Detalhe e comentários. |
+| `/teacher/corrections` | Turmas disponíveis para correção. |
+| `/teacher/corrections/:classId` | Entregas da turma. |
+| `/teacher/correction/:id` | Correção ou revisão de entrega. |
+| `/teacher/profile` | Perfil e turmas atribuídas. |
+| `/teacher/class/:classId` | Turma, disciplinas e atividades. |
 
-### Área do aluno
-
-Rotas protegidas para usuário com role `aluno`:
+### 7.3 Área do aluno
 
 | Rota | Tela |
 | --- | --- |
@@ -331,42 +334,49 @@ type Comentario = {
 };
 ```
 
-## O que ainda está mockado
+## 8 INTEGRAÇÃO COM A API
 
-Os dados abaixo vêm de `src/app/data/mockData.ts` ou de textos fixos nas telas:
+### 8.1 Endpoints consumidos
 
-- atividades;
-- respostas de atividades;
-- correções;
-- notas;
-- boletim;
-- cronograma;
-- presença;
-- turmas;
-- matérias;
-- professores por matéria;
-- feedbacks atribuídos à IA;
-- conteúdos relacionados quando não vêm de tags dos posts.
+| Funcionalidade | Endpoints |
+| --- | --- |
+| Autenticação | `POST /auth/login`, `GET /auth/me` |
+| Perfis | `GET /alunos/me`, `GET /professores/me` |
+| Conteúdos | `GET /posts`, `GET /posts/:id`, `POST /posts`, `PUT /posts/:id`, `DELETE /posts/:id` |
+| Comentários | `GET/POST /posts/:postId/comentarios`, `PUT/DELETE /comentarios/:id` |
+| Atividades | `GET /atividades`, `GET /atividades/:id`, `POST /atividades` |
+| Entregas | `POST /atividades/:id/entregas`, `GET /atividades/:id/entregas`, `GET /entregas/me` |
+| Correções | `GET/PUT /entregas/:id/correcao` |
+| Boletim | `GET /boletins/me` |
+| Cronograma | `GET /cronograma` |
+| Catálogo acadêmico | `GET /turmas`, `GET /turmas/:id`, `GET /disciplinas` |
 
-Os botões de criação/publicação de atividades ainda não persistem dados no backend. O formulário de conteúdo/post do professor já usa a API real.
+Listagens acadêmicas e de conteúdo respeitam o envelope `{ dados, paginacao }`. Os contratos TypeScript ficam em `src/app/types/api.ts`; as chamadas acadêmicas ficam em `src/app/services/academicService.ts`.
 
-Posts, perfis básicos e comentários não usam mocks quando a API responde; as telas exibem estado de vazio ou erro quando a API não está disponível ou quando o recurso não existe.
+### 8.2 Fluxos acadêmicos implementados
 
-## Acessibilidade
+- Professor lista, consulta e cria atividades, inclusive como rascunho.
+- Professor acompanha entregas por atividade e por turma.
+- Professor registra e revisa nota e feedback de uma entrega.
+- Professor consulta suas turmas, disciplinas e atividades vinculadas.
+- Aluno lista somente atividades publicadas para sua turma.
+- Aluno acompanha se uma atividade está pendente, entregue ou corrigida.
+- Aluno envia uma resposta, com proteção contra reenvio duplicado.
+- Aluno consulta correções, boletim, cronograma e disciplinas reais.
 
-Recursos e cuidados presentes na interface atual:
+## 9 TESTES E QUALIDADE
 
-- navegação inferior simples e previsível;
-- textos curtos e linguagem clara;
-- ícones acompanhados de rótulos textuais;
-- botões grandes e áreas confortáveis para toque;
-- estados de foco em elementos interativos;
-- uso de `aria-label`, `aria-current`, `aria-selected`, `role="tab"` e `aria-live` em pontos da interface;
-- botões visuais de **Ouvir texto** e **Ouvir feedback**.
+Execute:
 
-Limite importante: os botões de leitura alternam estado visual, mas ainda não executam síntese de voz real.
+```bash
+pnpm test
+pnpm test:coverage
+pnpm build
+```
 
-## Estrutura de pastas
+A suíte cobre autenticação, contexto de sessão, rotas protegidas, posts, perfis, comentários e tratamento de erros. Novos fluxos acadêmicos devem receber testes de serviço e comportamento nas próximas alterações.
+
+## 10 ESTRUTURA DO PROJETO
 
 ```txt
 .
@@ -375,33 +385,30 @@ Limite importante: os botões de leitura alternam estado visual, mas ainda não 
 │       ├── frontend-ci.yml
 │       └── auto-merge-develop-to-main.yml
 ├── guidelines/
-│   └── Guidelines.md
 ├── src/
 │   ├── app/
-│   │   ├── App.tsx
 │   │   ├── components/
 │   │   ├── config/
 │   │   ├── contexts/
 │   │   ├── data/
 │   │   ├── hooks/
-│   │   └── services/
+│   │   ├── services/
+│   │   ├── test/
+│   │   ├── types/
+│   │   └── App.tsx
 │   ├── imports/
 │   ├── styles/
 │   └── main.tsx
-├── index.html
+├── .env.example
 ├── package.json
 ├── pnpm-lock.yaml
-├── pnpm-workspace.yaml
-├── postcss.config.mjs
 ├── vite.config.ts
-├── default_shadcn_theme.css
-├── ATTRIBUTIONS.md
 └── README.md
 ```
 
-### Principais arquivos
+Arquivos centrais:
 
-| Caminho | Descrição |
+| Caminho | Responsabilidade |
 | --- | --- |
 | `src/main.tsx` | Ponto de entrada da aplicação React. |
 | `src/app/App.tsx` | Rotas, layouts, navegação inferior e proteção por role. |
@@ -566,17 +573,13 @@ Estados tratados na interface:
 - Feedback de IA.
 - Turmas e disciplinas estruturadas.
 
-Essas telas permanecem como demonstração visual enquanto não há endpoints correspondentes.
+## 11 TRATAMENTO DE ERROS E ACESSIBILIDADE
 
-## Testes
+`ApiError` e `normalizeApiError` convertem falhas HTTP, rede, timeout e respostas inválidas em mensagens seguras. As telas usam componentes reutilizáveis para carregamento, lista vazia, erro e sucesso.
 
-Execute os testes automatizados:
+A interface possui foco visível, regiões `aria-live`, rótulos em controles, navegação por teclado e botões com área adequada para toque. Os botões de leitura ainda representam apenas a interação visual.
 
-```bash
-pnpm test
-```
-
-Execute cobertura:
+## 12 MAPEAMENTO DA IMPLANTAÇÃO
 
 ```bash
 pnpm test:coverage
