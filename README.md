@@ -1,6 +1,6 @@
 # Luminia Frontend
 
-Frontend do **Luminia**, plataforma educacional com experiências separadas para professores e alunos. O projeto foi criado como MVP acadêmico/hackathon, com interface mobile first, autenticação[...]
+Frontend do **Luminia**, plataforma educacional com experiências separadas para professores e alunos. O projeto foi criado como MVP acadêmico/hackathon, com interface mobile first, autenticação por JWT e integração progressiva com a API.
 
 > Observação: a pasta local deste repositório está nomeada como `LuminiaFront`.
 
@@ -18,9 +18,9 @@ Frontend do **Luminia**, plataforma educacional com experiências separadas para
 10. [Estrutura do projeto](#10-estrutura-do-projeto)
 11. [Tratamento de erros e acessibilidade](#11-tratamento-de-erros-e-acessibilidade)
 12. [Mapeamento da implantação](#12-mapeamento-da-implantação)
-13. [Limitações conhecidas](#13-limitações-conhecidas)
-14. [Planejamento](#14-planejamento)
-15. [Referências normativas](#15-referências-normativas)
+13. [Limitações conhecidas](#limitações-conhecidas)
+14. [Próximos passos](#próximos-passos)
+15. [Créditos](#créditos)
 
 ## 1 APRESENTAÇÃO
 
@@ -43,12 +43,12 @@ O projeto é um MVP mobile first desenvolvido a partir do protótipo `Luminiapro
 
 ## 3 SCRIPTS DISPONÍVEIS
 
-| Comando | Descrição |
-| --- | --- |
-| `pnpm dev` | Inicia o servidor de desenvolvimento Vite. |
-| `pnpm build` | Gera o bundle de produção. |
-| `pnpm test` | Executa os testes uma vez com Vitest. |
-| `pnpm test:coverage` | Executa os testes e gera cobertura V8. |
+| Comando              | Descrição                                  |
+| -------------------- | ------------------------------------------ |
+| `pnpm dev`           | Inicia o servidor de desenvolvimento Vite. |
+| `pnpm build`         | Gera o bundle de produção.                 |
+| `pnpm test`          | Executa os testes uma vez com Vitest.      |
+| `pnpm test:coverage` | Executa os testes e gera cobertura V8.     |
 
 Não há script de lint configurado atualmente.
 
@@ -111,7 +111,7 @@ VITE_API_URL=http://localhost:3000
 Prepare primeiro o backend:
 
 ```bash
-cd ../LuminiaBack
+cd ../LuminiaBackend
 docker compose up -d
 npm install
 npm run seed
@@ -129,10 +129,10 @@ A interface fica disponível, por padrão, em `http://localhost:5173`.
 
 Credenciais criadas pelo seed local:
 
-| Perfil | Email | Senha |
-| --- | --- | --- |
+| Perfil    | Email                   | Senha    |
+| --------- | ----------------------- | -------- |
 | Professor | `professor@luminia.com` | `123456` |
-| Aluno | `aluno@luminia.com` | `123456` |
+| Aluno     | `aluno@luminia.com`     | `123456` |
 
 Essas credenciais são exclusivas para desenvolvimento.
 
@@ -146,33 +146,33 @@ Rotas protegidas verificam autenticação e role. Um `401` encerra a sessão; um
 
 ### 7.2 Área do professor
 
-| Rota | Tela |
-| --- | --- |
-| `/teacher` | Dashboard. |
-| `/teacher/activities` | Atividades reais do professor. |
-| `/teacher/activity/:id` | Detalhe e resumo de entregas. |
-| `/teacher/create` | Criação de atividade publicada ou rascunho. |
-| `/teacher/contents` | Conteúdos publicados. |
-| `/teacher/content/new` | Criação de conteúdo. |
-| `/teacher/content/:id/edit` | Edição de conteúdo próprio. |
-| `/teacher/content/:id` | Detalhe e comentários. |
-| `/teacher/corrections` | Turmas disponíveis para correção. |
-| `/teacher/corrections/:classId` | Entregas da turma. |
-| `/teacher/correction/:id` | Correção ou revisão de entrega. |
-| `/teacher/profile` | Perfil e turmas atribuídas. |
-| `/teacher/class/:classId` | Turma, disciplinas e atividades. |
+| Rota                            | Tela                                        |
+| ------------------------------- | ------------------------------------------- |
+| `/teacher`                      | Dashboard.                                  |
+| `/teacher/activities`           | Atividades reais do professor.              |
+| `/teacher/activity/:id`         | Detalhe e resumo de entregas.               |
+| `/teacher/create`               | Criação de atividade publicada ou rascunho. |
+| `/teacher/contents`             | Conteúdos publicados.                       |
+| `/teacher/content/new`          | Criação de conteúdo.                        |
+| `/teacher/content/:id/edit`     | Edição de conteúdo próprio.                 |
+| `/teacher/content/:id`          | Detalhe e comentários.                      |
+| `/teacher/corrections`          | Turmas disponíveis para correção.           |
+| `/teacher/corrections/:classId` | Entregas da turma.                          |
+| `/teacher/correction/:id`       | Correção ou revisão de entrega.             |
+| `/teacher/profile`              | Perfil e turmas atribuídas.                 |
+| `/teacher/class/:classId`       | Turma, disciplinas e atividades.            |
 
 ### 7.3 Área do aluno
 
-| Rota | Tela |
-| --- | --- |
-| `/student` | Dashboard do aluno. |
-| `/student/contents` | Lista de conteúdos. |
-| `/student/content/:id` | Detalhe de conteúdo. |
-| `/student/activities` | Lista de atividades. |
-| `/student/activity/:id` | Tela visual de resposta de atividade. |
-| `/student/feedback` | Feedback do aluno com simulação de adaptação por nível. |
-| `/student/profile` | Perfil do aluno e logout. |
+| Rota                    | Tela                                                    |
+| ----------------------- | ------------------------------------------------------- |
+| `/student`              | Dashboard do aluno.                                     |
+| `/student/contents`     | Lista de conteúdos.                                     |
+| `/student/content/:id`  | Detalhe de conteúdo.                                    |
+| `/student/activities`   | Lista de atividades.                                    |
+| `/student/activity/:id` | Tela visual de resposta de atividade.                   |
+| `/student/feedback`     | Feedback do aluno com simulação de adaptação por nível. |
+| `/student/profile`      | Perfil do aluno e logout.                               |
 
 ## Fluxo de branching
 
@@ -181,6 +181,7 @@ Este projeto segue um fluxo de desenvolvimento estruturado com `develop` como br
 ### Como contribuir
 
 1. **Crie uma branch feature a partir de `develop`:**
+
    ```bash
    git checkout develop
    git pull origin develop
@@ -188,6 +189,7 @@ Este projeto segue um fluxo de desenvolvimento estruturado com `develop` como br
    ```
 
 2. **Faça commits e push para a branch feature:**
+
    ```bash
    git push origin feature/sua-feature
    ```
@@ -266,12 +268,9 @@ Disponível hoje:
 
 Ainda simulado:
 
-- criação real de atividades;
-- publicação real de conteúdo pelo formulário;
-- correção de atividades;
-- nota sugerida por IA;
-- presença;
-- dados detalhados de turma.
+- feedback pedagógico por IA;
+- leitura em voz alta com síntese real;
+- endpoint agregado de resumo para dashboard.
 
 ### Fluxo de aluno
 
@@ -290,10 +289,6 @@ Disponível hoje:
 
 Ainda simulado:
 
-- atividades pendentes;
-- envio real de resposta;
-- boletim;
-- cronograma;
 - feedback pedagógico;
 - adaptação de feedback por IA.
 
@@ -319,7 +314,7 @@ Contrato TypeScript de comentários:
 type AutorComentario = {
   _id: string;
   nome: string;
-  role: 'aluno' | 'professor';
+  role: "aluno" | "professor";
 };
 
 type Comentario = {
@@ -338,18 +333,18 @@ type Comentario = {
 
 ### 8.1 Endpoints consumidos
 
-| Funcionalidade | Endpoints |
-| --- | --- |
-| Autenticação | `POST /auth/login`, `GET /auth/me` |
-| Perfis | `GET /alunos/me`, `GET /professores/me` |
-| Conteúdos | `GET /posts`, `GET /posts/:id`, `POST /posts`, `PUT /posts/:id`, `DELETE /posts/:id` |
-| Comentários | `GET/POST /posts/:postId/comentarios`, `PUT/DELETE /comentarios/:id` |
-| Atividades | `GET /atividades`, `GET /atividades/:id`, `POST /atividades` |
-| Entregas | `POST /atividades/:id/entregas`, `GET /atividades/:id/entregas`, `GET /entregas/me` |
-| Correções | `GET/PUT /entregas/:id/correcao` |
-| Boletim | `GET /boletins/me` |
-| Cronograma | `GET /cronograma` |
-| Catálogo acadêmico | `GET /turmas`, `GET /turmas/:id`, `GET /disciplinas` |
+| Funcionalidade     | Endpoints                                                                            |
+| ------------------ | ------------------------------------------------------------------------------------ |
+| Autenticação       | `POST /auth/login`, `GET /auth/me`                                                   |
+| Perfis             | `GET /alunos/me`, `GET /professores/me`                                              |
+| Conteúdos          | `GET /posts`, `GET /posts/:id`, `POST /posts`, `PUT /posts/:id`, `DELETE /posts/:id` |
+| Comentários        | `GET/POST /posts/:postId/comentarios`, `PUT/DELETE /comentarios/:id`                 |
+| Atividades         | `GET /atividades`, `GET /atividades/:id`, `POST /atividades`                         |
+| Entregas           | `POST /atividades/:id/entregas`, `GET /atividades/:id/entregas`, `GET /entregas/me`  |
+| Correções          | `GET/PUT /entregas/:id/correcao`                                                     |
+| Boletim            | `GET /boletins/me`                                                                   |
+| Cronograma         | `GET /cronograma`                                                                    |
+| Catálogo acadêmico | `GET /turmas`, `GET /turmas/:id`, `GET /disciplinas`                                 |
 
 Listagens acadêmicas e de conteúdo respeitam o envelope `{ dados, paginacao }`. Os contratos TypeScript ficam em `src/app/types/api.ts`; as chamadas acadêmicas ficam em `src/app/services/academicService.ts`.
 
@@ -408,33 +403,33 @@ A suíte cobre autenticação, contexto de sessão, rotas protegidas, posts, per
 
 Arquivos centrais:
 
-| Caminho | Responsabilidade |
-| --- | --- |
-| `src/main.tsx` | Ponto de entrada da aplicação React. |
-| `src/app/App.tsx` | Rotas, layouts, navegação inferior e proteção por role. |
-| `src/app/components/LoginScreen.tsx` | Tela de login integrada ao backend. |
-| `src/app/components/TeacherScreens.tsx` | Telas da área do professor. |
-| `src/app/components/StudentScreens.tsx` | Telas da área do aluno. |
-| `src/app/components/AIFeedback.tsx` | Card visual de feedback simulado com níveis de detalhe. |
-| `src/app/components/ComentariosSection.tsx` | Formulário e lista de comentários integrados ao backend. |
-| `src/app/components/ComentariosSection.test.tsx` | Testes de comportamento da seção de comentários. |
-| `src/app/components/feedback.tsx` | Estados reutilizáveis de erro, carregamento, vazio e feedback acessível. |
-| `src/app/components/ui.tsx` | Componentes básicos reutilizados pela interface. |
-| `src/app/config/api.ts` | Configuração da URL da API. |
-| `src/app/contexts/AuthContext.tsx` | Estado de sessão, login, logout e restauração de usuário. |
-| `src/app/hooks/usePostContents.ts` | Hook para buscar posts/conteúdos reais e tratar carregamento/erro/vazio. |
-| `src/app/services/api.ts` | Cliente HTTP com token JWT automático e normalização central de erros. |
-| `src/app/services/authService.ts` | Serviços de login e usuário autenticado. |
-| `src/app/services/comentarioService.ts` | Serviços e tipos do contrato de comentários. |
-| `src/app/services/postService.ts` | Serviços de posts e mapeamento para conteúdos da UI. |
-| `src/app/services/profileService.ts` | Serviços de perfil autenticado de aluno e professor. |
-| `src/app/types/api.ts` | Tipos TypeScript do contrato principal da API. |
-| `src/app/data/mockData.ts` | Dados simulados usados nas telas ainda não integradas. |
-| `src/app/test/setup.ts` | Setup dos testes com matchers do Testing Library e limpeza de storage/mocks. |
-| `src/app/test/fixtures.ts` | Fixtures reutilizáveis de usuário, sessão, posts, perfis e comentários. |
-| `src/app/test/renderWithProviders.tsx` | Helper de renderização com router e providers. |
-| `src/styles/` | Estilos globais, tema, fontes e Tailwind CSS. |
-| `src/imports/` | Imagens importadas para o projeto. |
+| Caminho                                          | Responsabilidade                                                             |
+| ------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `src/main.tsx`                                   | Ponto de entrada da aplicação React.                                         |
+| `src/app/App.tsx`                                | Rotas, layouts, navegação inferior e proteção por role.                      |
+| `src/app/components/LoginScreen.tsx`             | Tela de login integrada ao backend.                                          |
+| `src/app/components/TeacherScreens.tsx`          | Telas da área do professor.                                                  |
+| `src/app/components/StudentScreens.tsx`          | Telas da área do aluno.                                                      |
+| `src/app/components/AIFeedback.tsx`              | Card visual de feedback simulado com níveis de detalhe.                      |
+| `src/app/components/ComentariosSection.tsx`      | Formulário e lista de comentários integrados ao backend.                     |
+| `src/app/components/ComentariosSection.test.tsx` | Testes de comportamento da seção de comentários.                             |
+| `src/app/components/feedback.tsx`                | Estados reutilizáveis de erro, carregamento, vazio e feedback acessível.     |
+| `src/app/components/ui.tsx`                      | Componentes básicos reutilizados pela interface.                             |
+| `src/app/config/api.ts`                          | Configuração da URL da API.                                                  |
+| `src/app/contexts/AuthContext.tsx`               | Estado de sessão, login, logout e restauração de usuário.                    |
+| `src/app/hooks/usePostContents.ts`               | Hook para buscar posts/conteúdos reais e tratar carregamento/erro/vazio.     |
+| `src/app/services/api.ts`                        | Cliente HTTP com token JWT automático e normalização central de erros.       |
+| `src/app/services/authService.ts`                | Serviços de login e usuário autenticado.                                     |
+| `src/app/services/comentarioService.ts`          | Serviços e tipos do contrato de comentários.                                 |
+| `src/app/services/postService.ts`                | Serviços de posts e mapeamento para conteúdos da UI.                         |
+| `src/app/services/profileService.ts`             | Serviços de perfil autenticado de aluno e professor.                         |
+| `src/app/types/api.ts`                           | Tipos TypeScript do contrato principal da API.                               |
+| `src/app/data/mockData.ts`                       | Dados simulados usados nas telas ainda não integradas.                       |
+| `src/app/test/setup.ts`                          | Setup dos testes com matchers do Testing Library e limpeza de storage/mocks. |
+| `src/app/test/fixtures.ts`                       | Fixtures reutilizáveis de usuário, sessão, posts, perfis e comentários.      |
+| `src/app/test/renderWithProviders.tsx`           | Helper de renderização com router e providers.                               |
+| `src/styles/`                                    | Estilos globais, tema, fontes e Tailwind CSS.                                |
+| `src/imports/`                                   | Imagens importadas para o projeto.                                           |
 
 ## Status da integração
 
@@ -473,10 +468,9 @@ Implementado:
 
 Ainda não implementado:
 
-- Persistência real para atividades, respostas, correções, presença, boletim e cronograma.
 - Integração real de IA.
 - Síntese de voz real para os botões de leitura.
-- Validações completas de formulários acadêmicos ainda mockados.
+- Endpoint agregado de resumo (dashboard) para reduzir múltiplas chamadas por tela.
 
 Status da etapa:
 
@@ -487,18 +481,15 @@ Status da etapa:
 
 ## Limitações conhecidas
 
-- Grande parte do MVP ainda depende de `mockData.ts`.
-- As telas de correção e feedback exibem dados simulados; não há correção automática real.
-- Boletim, presença e cronograma são apenas representações visuais.
-- A tela de envio de atividade altera estado local, mas não envia dados para a API.
-- O formulário de atividade ainda não chama endpoint de criação.
+- Recursos de IA ainda não possuem integração real no backend.
+- Botões de leitura ainda não estão conectados à Web Speech API ou serviço equivalente.
+- O dashboard ainda agrega dados com múltiplas requisições no cliente.
 - O projeto não possui script de lint configurado.
-- A leitura em voz alta ainda não está conectada a Web Speech API ou serviço equivalente.
 - Comentários dependem de posts reais do backend; ao abrir conteúdo mockado, a seção mostra erro de recurso inexistente.
 
 ## Tratamento de erros
 
-O modelo central de erro fica em `src/app/services/api.ts` como `AppError`, `ApiError`, `normalizeApiError` e `getFriendlyErrorMessage`. A normalização trata `400`, `401`, `403`, `404`, `409`, [...]
+O modelo central de erro fica em `src/app/services/api.ts` como `AppError`, `ApiError`, `normalizeApiError` e `getFriendlyErrorMessage`. A normalização trata `400`, `401`, `403`, `404`, `409`, `422` e erros inesperados com fallback seguro.
 
 Os estados visuais reutilizáveis ficam em `src/app/components/feedback.tsx`:
 
@@ -554,24 +545,25 @@ Estados tratados na interface:
 
 ## Integrações concluídas
 
-| Funcionalidade | Situação | Endpoint |
-| --- | --- | --- |
-| Login | Integrado | `POST /auth/login` |
-| Sessão | Integrado | `GET /auth/me` |
-| Posts | Integrado | `GET /posts`, `GET /posts/:id`, `POST /posts`, `PUT /posts/:id`, `DELETE /posts/:id` |
-| Perfil aluno | Integrado | `GET /alunos/me` |
-| Perfil professor | Integrado | `GET /professores/me` |
-| Comentários | Integrado | `GET/POST /posts/:postId/comentarios`, `PUT/DELETE /comentarios/:id` |
+| Funcionalidade   | Situação  | Endpoint                                                                             |
+| ---------------- | --------- | ------------------------------------------------------------------------------------ |
+| Login            | Integrado | `POST /auth/login`                                                                   |
+| Sessão           | Integrado | `GET /auth/me`                                                                       |
+| Posts            | Integrado | `GET /posts`, `GET /posts/:id`, `POST /posts`, `PUT /posts/:id`, `DELETE /posts/:id` |
+| Perfil aluno     | Integrado | `GET /alunos/me`                                                                     |
+| Perfil professor | Integrado | `GET /professores/me`                                                                |
+| Comentários      | Integrado | `GET/POST /posts/:postId/comentarios`, `PUT/DELETE /comentarios/:id`                 |
+| Atividades       | Integrado | `GET /atividades`, `GET /atividades/:id`, `POST /atividades`                         |
+| Entregas         | Integrado | `POST /atividades/:id/entregas`, `GET /atividades/:id/entregas`, `GET /entregas/me`  |
+| Correções        | Integrado | `GET/PUT /entregas/:id/correcao`                                                     |
+| Boletim          | Integrado | `GET /boletins/me`                                                                   |
+| Cronograma       | Integrado | `GET /cronograma`                                                                    |
+| Catálogo         | Integrado | `GET /turmas`, `GET /turmas/:id`, `GET /disciplinas`                                 |
 
-## Telas ainda mockadas
+## Recursos ainda simulados
 
-- Atividades e envio de respostas.
-- Correções.
-- Presença.
-- Boletim detalhado.
-- Cronograma.
-- Feedback de IA.
-- Turmas e disciplinas estruturadas.
+- Feedback de IA adaptativo.
+- Leitura em voz alta com síntese real de áudio.
 
 ## 11 TRATAMENTO DE ERROS E ACESSIBILIDADE
 
@@ -606,14 +598,14 @@ A suíte validada nesta etapa possui 8 arquivos e 65 testes. Fluxos cobertos:
 
 Cobertura real em 2026-07-09:
 
-| Métrica | Cobertura |
-| --- | ---: |
-| Statements | 70.95% |
-| Branches | 64.12% |
-| Functions | 51.59% |
-| Lines | 71.36% |
+| Métrica    | Cobertura |
+| ---------- | --------: |
+| Statements |    70.95% |
+| Branches   |    64.12% |
+| Functions  |    51.59% |
+| Lines      |    71.36% |
 
-Limitação atual: não há script de lint nem typecheck dedicado no `package.json`; por isso a validação final executa `pnpm test`, `pnpm test:coverage` e `pnpm build`. Não foram adicionados [...]
+Limitação atual: não há script de lint dedicado no `package.json`; por isso a validação final executa `pnpm test`, `pnpm test:coverage`, `pnpm exec tsc --noEmit` e `pnpm build`.
 
 ## Próximos passos
 
