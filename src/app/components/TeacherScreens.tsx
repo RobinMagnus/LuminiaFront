@@ -1,11 +1,10 @@
 import React, { FormEvent, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { BookOpen, CalendarDays, CheckSquare, FileText, PenTool, Users } from 'lucide-react';
-import { teacher } from '../data/mockData';
 import { useAuth } from '../contexts/AuthContext';
 import { usePostContent, usePostContents } from '../hooks/usePostContents';
 import { getFriendlyErrorMessage } from '../services/api';
-import { createPost, deletePost, updatePost } from '../services/postService';
+import { createPost, deletePost, listPosts, updatePost } from '../services/postService';
 import { getMeuPerfilProfessor } from '../services/profileService';
 import { createAtividade, getAtividade, getCorrecao, getTurma, listAtividades, listDisciplinas, listEntregasAtividade, listTurmas, saveCorrecao } from '../services/academicService';
 import { useAcademicData } from '../hooks/useAcademicData';
@@ -24,7 +23,7 @@ const BackButton = ({ to }: { to?: string }) => {
 };
 
 const StatCard = ({ icon: Icon, value, label, tone = "primary" }: any) => (
-  <Card className="p-4 text-center focus:outline-none focus:ring-2 focus:ring-primary" tabIndex={0}>
+  <Card className="p-4 text-center focus:outline-none focus:ring-2 focus:ring-primary md:p-5" tabIndex={0}>
     <div className={`w-10 h-10 mx-auto rounded-full flex items-center justify-center mb-2 ${tone === "coral" ? "bg-[#FFE8E8] text-accent" : "bg-primary-light text-primary"}`}>
       <Icon size={20} aria-hidden="true" />
     </div>
@@ -37,18 +36,43 @@ export const TeacherDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const firstName = user?.nome.split(' ')[0] || 'Professor';
+  const { data: summary, isLoading: isLoadingSummary } = useAcademicData(async () => {
+    const [atividadesResponse, turmasResponse, posts] = await Promise.all([
+      listAtividades(),
+      listTurmas(),
+      listPosts(),
+    ]);
+
+    const entregasPorAtividade = await Promise.all(
+      atividadesResponse.dados.map(atividade => listEntregasAtividade(atividade._id))
+    );
+
+    const pendingCorrections = entregasPorAtividade
+      .flatMap(response => response.dados)
+      .filter(entrega => entrega.status !== 'corrigida').length;
+
+    const publishedContents = posts.filter(post => post.authorId === user?.id).length;
+
+    return {
+      activitiesCount: atividadesResponse.dados.length,
+      pendingCorrections,
+      publishedContents,
+      classesCount: turmasResponse.dados.length,
+    };
+  }, [user?.id]);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <SectionHeader title={`Olá, Prof. ${firstName}`} subtitle="Resumo das suas turmas hoje." />
-      <div className="grid grid-cols-2 gap-4">
-        <StatCard icon={FileText} value="28" label="Atividades enviadas" />
-        <StatCard icon={CheckSquare} value="17" label="Correções pendentes" tone="coral" />
-        <StatCard icon={BookOpen} value="8" label="Conteúdos publicados" />
-        <StatCard icon={Users} value="2" label="Turmas atribuídas" />
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard icon={FileText} value={isLoadingSummary ? '-' : String(summary?.activitiesCount ?? 0)} label="Atividades enviadas" />
+        <StatCard icon={CheckSquare} value={isLoadingSummary ? '-' : String(summary?.pendingCorrections ?? 0)} label="Correções pendentes" tone="coral" />
+        <StatCard icon={BookOpen} value={isLoadingSummary ? '-' : String(summary?.publishedContents ?? 0)} label="Conteúdos publicados" />
+        <StatCard icon={Users} value={isLoadingSummary ? '-' : String(summary?.classesCount ?? 0)} label="Turmas atribuídas" />
       </div>
       <section>
-        <h2 className="text-lg font-medium text-foreground mb-3">Atalhos rápidos</h2>
-        <div className="space-y-3">
+        <h2 className="text-lg font-medium text-foreground mb-4">Atalhos rápidos</h2>
+        <div className="grid gap-3 lg:grid-cols-3">
           <Button variant="outline" className="flex items-center justify-start gap-3 h-auto py-4 bg-card" onClick={() => navigate('/teacher/create')}>
             <PenTool size={20} className="text-primary" aria-hidden="true" /> Criar atividade
           </Button>
@@ -68,10 +92,12 @@ export const TeacherActivities = () => {
   const navigate = useNavigate();
   const { data, isLoading, error, reload } = useAcademicData(() => listAtividades());
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-20 md:pb-8">
       <SectionHeader title="Atividades" subtitle="Histórico de atividades criadas e enviadas." />
-      <Button onClick={() => navigate('/teacher/create')}>Criar nova atividade</Button>
-      <div className="space-y-4">
+      <div className="max-w-sm">
+        <Button onClick={() => navigate('/teacher/create')}>Criar nova atividade</Button>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {isLoading ? <LoadingState message="Carregando atividades..." /> : null}
         {error ? <ErrorState title="Não foi possível carregar as atividades" message={error} onRetry={reload} compact /> : null}
         {!isLoading && !error && !data?.dados.length ? <EmptyState title="Nenhuma atividade criada." /> : null}
@@ -193,9 +219,11 @@ export const TeacherContents = () => {
   };
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-20 md:pb-8">
       <SectionHeader title="Conteúdos" subtitle="Materiais publicados para os alunos." />
-      <Button onClick={() => navigate('/teacher/content/new')}>Novo conteúdo</Button>
+      <div className="max-w-sm">
+        <Button onClick={() => navigate('/teacher/content/new')}>Novo conteúdo</Button>
+      </div>
       {isLoading ? <LoadingState message="Carregando conteúdos..." /> : null}
       {error ? <ErrorState title="Não foi possível carregar os conteúdos" message={error} onRetry={reload} compact /> : null}
       {success ? <FeedbackMessage type="success" message={success} compact onClose={() => setSuccess('')} /> : null}
@@ -205,7 +233,7 @@ export const TeacherContents = () => {
           message="Crie o primeiro post para que alunos possam visualizar."
         />
       ) : null}
-      <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {contents.map(content => (
           <Card key={content.id}>
             <Badge variant="primary">{content.subject}</Badge>
@@ -384,18 +412,20 @@ export const TeacherCorrectionsClasses = () => {
   const navigate = useNavigate();
   const { data, isLoading, error, reload } = useAcademicData(() => listTurmas());
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-20 md:pb-8">
       <SectionHeader title="Correções" subtitle="Escolha uma turma para revisar entregas." />
       {isLoading ? <LoadingState message="Carregando turmas..." /> : null}
       {error ? <ErrorState title="Não foi possível carregar as turmas" message={error} onRetry={reload} compact /> : null}
       {!isLoading && !error && !data?.dados.length ? <EmptyState title="Nenhuma turma atribuída." /> : null}
-      {data?.dados.map(item => (
-        <Card key={item._id}>
-          <h3 className="font-medium text-lg">{item.nome}</h3>
-          <p className="text-sm text-muted-foreground mb-4">{item.codigo} | {item.anoLetivo} | {item.turno}</p>
-          <Button onClick={() => navigate(`/teacher/corrections/${item._id}`)}>Ver correções</Button>
-        </Card>
-      ))}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {data?.dados.map(item => (
+          <Card key={item._id}>
+            <h3 className="font-medium text-lg">{item.nome}</h3>
+            <p className="text-sm text-muted-foreground mb-4">{item.codigo} | {item.anoLetivo} | {item.turno}</p>
+            <Button onClick={() => navigate(`/teacher/corrections/${item._id}`)}>Ver correções</Button>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 };
@@ -410,7 +440,7 @@ export const TeacherCorrectionsList = () => {
     return { turma, entregas: listas.flatMap(item => item.dados) };
   }, [classId]);
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-20 md:pb-8">
       <header className="flex items-center gap-3">
         <BackButton to="/teacher/corrections" />
         <div>
@@ -421,22 +451,24 @@ export const TeacherCorrectionsList = () => {
       {isLoading ? <LoadingState message="Carregando entregas..." /> : null}
       {error ? <ErrorState title="Não foi possível carregar as entregas" message={error} onRetry={reload} compact /> : null}
       {!isLoading && !error && !data?.entregas.length ? <EmptyState title="Nenhuma entrega nesta turma." /> : null}
-      {data?.entregas.map(item => {
-        const atividade = typeof item.atividadeId === 'string' ? null : item.atividadeId;
-        const aluno = typeof item.alunoId === 'string' ? null : item.alunoId;
-        return <Card key={item._id}>
-          <div className="flex justify-between gap-3">
-            <div>
-              <Badge variant={item.status === 'corrigida' ? 'success' : 'warning'}>{item.status === 'corrigida' ? 'Corrigida' : 'Pendente'}</Badge>
-              <h3 className="font-medium text-base mt-2">{atividade?.titulo || 'Atividade'}</h3>
-              <p className="text-sm text-muted-foreground">{aluno?.nome || 'Aluno'}</p>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {data?.entregas.map(item => {
+          const atividade = typeof item.atividadeId === 'string' ? null : item.atividadeId;
+          const aluno = typeof item.alunoId === 'string' ? null : item.alunoId;
+          return <Card key={item._id}>
+            <div className="flex justify-between gap-3">
+              <div>
+                <Badge variant={item.status === 'corrigida' ? 'success' : 'warning'}>{item.status === 'corrigida' ? 'Corrigida' : 'Pendente'}</Badge>
+                <h3 className="font-medium text-base mt-2">{atividade?.titulo || 'Atividade'}</h3>
+                <p className="text-sm text-muted-foreground">{aluno?.nome || 'Aluno'}</p>
+              </div>
             </div>
-          </div>
-          <Button className="mt-4" variant={item.status === 'corrigida' ? 'outline' : 'primary'} onClick={() => navigate(`/teacher/correction/${item._id}`)}>
-            {item.status === 'corrigida' ? 'Revisar correção' : 'Corrigir'}
-          </Button>
-        </Card>;
-      })}
+            <Button className="mt-4" variant={item.status === 'corrigida' ? 'outline' : 'primary'} onClick={() => navigate(`/teacher/correction/${item._id}`)}>
+              {item.status === 'corrigida' ? 'Revisar correção' : 'Corrigir'}
+            </Button>
+          </Card>;
+        })}
+      </div>
     </div>
   );
 };
@@ -496,13 +528,14 @@ export const TeacherProfile = () => {
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [profileError, setProfileError] = useState('');
   const { data: turmas, isLoading: isLoadingTurmas, error: turmasError, reload: reloadTurmas } = useAcademicData(() => listTurmas());
-  const name = profile?.nome || user?.nome || teacher.name;
+  const name = profile?.nome || user?.nome || 'Professor';
   const initials = name
     .split(' ')
     .map(part => part[0])
     .join('')
     .slice(0, 2)
     .toUpperCase();
+  const profileSubtitle = user?.email || (profile?.dataNascimento ? `Nascimento: ${new Date(profile.dataNascimento).toLocaleDateString('pt-BR')}` : 'Perfil do professor');
 
   const handleLogout = () => {
     logout();
@@ -535,29 +568,37 @@ export const TeacherProfile = () => {
   }, []);
 
   return (
-    <div className="space-y-6 pb-20">
-      <ProfileHeader initials={initials || teacher.avatar} name={name} subtitle={user?.email || `Nascimento: ${teacher.birthDate}`} />
-      <Button variant="outline" onClick={handleLogout}>Sair</Button>
+    <div className="space-y-6 pb-20 md:pb-8">
+      <div className="grid gap-6 xl:grid-cols-[1.2fr,0.8fr] xl:items-start">
+        <div className="space-y-6">
+          <ProfileHeader initials={initials || 'PR'} name={name} subtitle={profileSubtitle} />
+          <Card>
+            <h2 className="font-medium text-lg mb-2">Dados do professor</h2>
+            <p className="text-muted-foreground">Nascimento: {profile?.dataNascimento ? new Date(profile.dataNascimento).toLocaleDateString('pt-BR') : 'Não informado'}</p>
+            <p className="text-muted-foreground">Matérias: {profile?.materias?.length ? profile.materias.join(', ') : 'Não informadas'}</p>
+            <p className="text-muted-foreground">Turmas: {profile?.turmas?.length ? profile.turmas.join(', ') : 'Não informadas'}</p>
+          </Card>
+        </div>
+        <div className="xl:sticky xl:top-24">
+          <Button variant="outline" onClick={handleLogout}>Sair</Button>
+        </div>
+      </div>
       {isLoadingProfile ? <LoadingState message="Carregando perfil..." /> : null}
       {profileError ? <ErrorState title="Não foi possível carregar o perfil" message={profileError} compact /> : null}
-      <Card>
-        <h2 className="font-medium text-lg mb-2">Dados do professor</h2>
-        <p className="text-muted-foreground">Nascimento: {profile?.dataNascimento ? new Date(profile.dataNascimento).toLocaleDateString('pt-BR') : 'Não informado'}</p>
-        <p className="text-muted-foreground">Matérias: {profile?.materias?.length ? profile.materias.join(', ') : 'Não informadas'}</p>
-        <p className="text-muted-foreground">Turmas: {profile?.turmas?.length ? profile.turmas.join(', ') : 'Não informadas'}</p>
-      </Card>
       <section className="space-y-4">
         <h2 className="text-lg font-medium">Turmas atribuídas</h2>
         {isLoadingTurmas ? <LoadingState message="Carregando turmas..." /> : null}
         {turmasError ? <ErrorState title="Não foi possível carregar as turmas" message={turmasError} onRetry={reloadTurmas} compact /> : null}
         {!isLoadingTurmas && !turmasError && !turmas?.dados.length ? <EmptyState title="Nenhuma turma atribuída." /> : null}
-        {turmas?.dados.map(item => (
-          <Card key={item._id}>
-            <h3 className="font-medium">{item.nome}</h3>
-            <p className="text-sm text-muted-foreground mb-4">{item.codigo} | {item.anoLetivo} | {item.turno}</p>
-            <Button variant="outline" onClick={() => navigate(`/teacher/class/${item._id}`)}>Acessar turma</Button>
-          </Card>
-        ))}
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {turmas?.dados.map(item => (
+            <Card key={item._id}>
+              <h3 className="font-medium">{item.nome}</h3>
+              <p className="text-sm text-muted-foreground mb-4">{item.codigo} | {item.anoLetivo} | {item.turno}</p>
+              <Button variant="outline" onClick={() => navigate(`/teacher/class/${item._id}`)}>Acessar turma</Button>
+            </Card>
+          ))}
+        </div>
       </section>
     </div>
   );
@@ -573,20 +614,22 @@ export const TeacherClassDetail = () => {
   if (isLoading) return <LoadingState message="Carregando turma..." />;
   if (error || !data) return <div className="space-y-4"><BackButton to="/teacher/profile" /><ErrorState title="Não foi possível abrir a turma" message={error || 'Turma não encontrada.'} onRetry={reload} compact /></div>;
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-20 md:pb-8">
       <header className="flex items-center gap-3"><BackButton to="/teacher/profile" /><div><h1 className="text-xl font-medium">{data.turma.nome}</h1><p className="text-muted-foreground">{data.turma.codigo} | {data.turma.anoLetivo}</p></div></header>
-      <Card>
-        <div className="flex items-center gap-2 mb-4"><CalendarDays size={18} className="text-primary" /><h2 className="font-medium text-lg">Dados da turma</h2></div>
-        <p className="text-sm text-muted-foreground">Turno: {data.turma.turno} | Situação: {data.turma.ativa ? 'Ativa' : 'Inativa'}</p>
-        {data.turma.descricao ? <p className="text-sm text-muted-foreground mt-2">{data.turma.descricao}</p> : null}
-      </Card>
-      <Card>
-        <h2 className="font-medium text-lg mb-3">Disciplinas</h2>
-        <div className="space-y-3">{data.disciplinas.map(item => <div key={item._id} className="rounded-xl bg-input-background p-3"><strong>{item.nome}</strong><p className="text-sm text-muted-foreground">{item.codigo} | {item.cargaHoraria} horas</p></div>)}</div>
-      </Card>
+      <div className="grid gap-6 xl:grid-cols-2">
+        <Card>
+          <div className="flex items-center gap-2 mb-4"><CalendarDays size={18} className="text-primary" /><h2 className="font-medium text-lg">Dados da turma</h2></div>
+          <p className="text-sm text-muted-foreground">Turno: {data.turma.turno} | Situação: {data.turma.ativa ? 'Ativa' : 'Inativa'}</p>
+          {data.turma.descricao ? <p className="text-sm text-muted-foreground mt-2">{data.turma.descricao}</p> : null}
+        </Card>
+        <Card>
+          <h2 className="font-medium text-lg mb-3">Disciplinas</h2>
+          <div className="space-y-3">{data.disciplinas.map(item => <div key={item._id} className="rounded-xl bg-input-background p-3"><strong>{item.nome}</strong><p className="text-sm text-muted-foreground">{item.codigo} | {item.cargaHoraria} horas</p></div>)}</div>
+        </Card>
+      </div>
       <Card>
         <h2 className="font-medium text-lg mb-3">Histórico de atividades</h2>
-        <div className="space-y-3">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {data.atividades.map(activity => (
             <div key={activity._id} className="rounded-xl bg-input-background p-3">
               <div className="flex justify-between gap-3">

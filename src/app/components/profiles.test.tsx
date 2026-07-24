@@ -35,13 +35,13 @@ describe('perfis integrados', () => {
     getMeuPerfilProfessorMock.mockResolvedValue(professorProfile);
   });
 
-  test('perfil de aluno carrega dados reais e mantém marcações demonstrativas', async () => {
+  test('perfil de aluno carrega dados reais sem marcador de integração pendente', async () => {
     renderProfile(<StudentProfile />);
 
     expect(screen.getByRole('status')).toHaveTextContent('Carregando perfil...');
     expect(await screen.findByText('Matrícula: MAT-123')).toBeInTheDocument();
     expect(screen.getByText('Turma: 3A')).toBeInTheDocument();
-    expect(screen.getAllByText('Demonstração visual — integração pendente').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Demonstração visual — integração pendente')).not.toBeInTheDocument();
     expect(getMeuPerfilAlunoMock).toHaveBeenCalledTimes(1);
     expect(getMeuPerfilProfessorMock).not.toHaveBeenCalled();
   });
