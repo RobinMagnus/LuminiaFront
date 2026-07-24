@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { BookOpen, CalendarDays, CheckCircle2, Clock, FileText, GraduationCap, UserRound } from 'lucide-react';
-import { student } from '../data/mockData';
 import { useAuth } from '../contexts/AuthContext';
 import { usePostContent, usePostContents } from '../hooks/usePostContents';
 import { getFriendlyErrorMessage } from '../services/api';
@@ -20,7 +19,7 @@ const BackButton = ({ to }: { to?: string }) => {
 
 const QuickCard = ({ icon: Icon, title, subtitle, onClick }: any) => (
   <Card
-    className="p-4 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary"
+    className="p-4 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary md:p-5"
     role="button"
     tabIndex={0}
     onClick={onClick}
@@ -40,19 +39,74 @@ const QuickCard = ({ icon: Icon, title, subtitle, onClick }: any) => (
 export const StudentDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const firstName = user?.nome.split(' ')[0] || 'Maria';
+  const firstName = user?.nome.split(' ')[0] || 'Aluno';
+  const { data: summary, isLoading: isLoadingSummary } = useAcademicData(async () => {
+    const [cronogramaResponse, atividadesResponse, entregasResponse, boletimResponse] = await Promise.all([
+      listCronograma(),
+      listAtividades(),
+      listMinhasEntregas(),
+      getMeuBoletim(),
+    ]);
+
+    const entregasIds = new Set(
+      entregasResponse.dados.map(item => (typeof item.atividadeId === 'string' ? item.atividadeId : item.atividadeId._id))
+    );
+
+    const pendingActivities = atividadesResponse.dados.filter(item => !entregasIds.has(item._id)).length;
+    const correctedDeliveries = entregasResponse.dados.filter(item => item.status === 'corrigida').length;
+    const latestGrade = boletimResponse.notas.length ? boletimResponse.notas[boletimResponse.notas.length - 1].nota : null;
+
+    const now = Date.now();
+    const sortedSchedule = [...cronogramaResponse.dados].sort((a, b) => new Date(a.inicio).getTime() - new Date(b.inicio).getTime());
+    const nextClass = sortedSchedule.find(item => new Date(item.inicio).getTime() >= now) || sortedSchedule[0] || null;
+
+    return {
+      pendingActivities,
+      correctedDeliveries,
+      latestGrade,
+      nextClass,
+    };
+  });
+
+  const nextClassSubtitle = (() => {
+    if (isLoadingSummary) {
+      return 'Carregando...';
+    }
+
+    if (!summary?.nextClass) {
+      return 'Sem aula no cronograma';
+    }
+
+    return `${summary.nextClass.disciplina || summary.nextClass.tipo}, ${new Date(summary.nextClass.inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+  })();
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <SectionHeader title={`Olá, ${firstName}`} subtitle="Aqui está seu dia de estudos." />
-      <div className="grid grid-cols-2 gap-4">
-        <QuickCard icon={CalendarDays} title="Próxima aula" subtitle="Biologia, 11:10" onClick={() => navigate('/student/profile')} />
-        <QuickCard icon={Clock} title="Pendentes" subtitle="1 atividade" onClick={() => navigate('/student/activities')} />
-        <QuickCard icon={GraduationCap} title="Última nota" subtitle="7.5 em Física" onClick={() => navigate('/student/feedback')} />
-        <QuickCard icon={BookOpen} title="Novo feedback" subtitle="IA explicou seus erros" onClick={() => navigate('/student/feedback')} />
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <QuickCard icon={CalendarDays} title="Próxima aula" subtitle={nextClassSubtitle} onClick={() => navigate('/student/profile')} />
+        <QuickCard
+          icon={Clock}
+          title="Pendentes"
+          subtitle={isLoadingSummary ? 'Carregando...' : `${summary?.pendingActivities ?? 0} atividade${(summary?.pendingActivities ?? 0) === 1 ? '' : 's'}`}
+          onClick={() => navigate('/student/activities')}
+        />
+        <QuickCard
+          icon={GraduationCap}
+          title="Última nota"
+          subtitle={isLoadingSummary ? 'Carregando...' : summary?.latestGrade !== null && summary?.latestGrade !== undefined ? `${summary.latestGrade.toLocaleString('pt-BR')} no boletim` : 'Sem notas lançadas'}
+          onClick={() => navigate('/student/feedback')}
+        />
+        <QuickCard
+          icon={BookOpen}
+          title="Feedbacks"
+          subtitle={isLoadingSummary ? 'Carregando...' : `${summary?.correctedDeliveries ?? 0} correção(ões) publicada(s)`}
+          onClick={() => navigate('/student/feedback')}
+        />
       </div>
       <section>
-        <h2 className="text-lg font-medium mb-3">Atalhos</h2>
-        <div className="space-y-3">
+        <h2 className="text-lg font-medium mb-4">Atalhos</h2>
+        <div className="grid gap-3 lg:grid-cols-3">
           <Button variant="outline" onClick={() => navigate('/student/contents')}>Ver conteúdos</Button>
           <Button variant="outline" onClick={() => navigate('/student/activities')}>Enviar atividade</Button>
           <Button variant="outline" onClick={() => navigate('/student/profile')}>Ver boletim e cronograma</Button>
@@ -66,7 +120,7 @@ export const StudentContents = () => {
   const navigate = useNavigate();
   const { contents, isLoading, error, reload } = usePostContents();
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-20 md:pb-8">
       <SectionHeader title="Conteúdos" subtitle="Materiais publicados pelos professores." />
       {isLoading ? <LoadingState message="Carregando conteúdos..." /> : null}
       {error ? <ErrorState title="Não foi possível carregar os conteúdos" message={error} onRetry={reload} compact /> : null}
@@ -76,17 +130,19 @@ export const StudentContents = () => {
           message="Quando professores publicarem posts visíveis para alunos, eles aparecerão aqui."
         />
       ) : null}
-      {contents.map(content => (
-        <Card key={content.id}>
-          <Badge variant="primary">{content.subject}</Badge>
-          <h3 className="font-medium text-lg mt-3">{content.title}</h3>
-          <p className="text-sm text-muted-foreground mb-4">{content.teacher} | {content.publishedAt}</p>
-          <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" className="!w-auto !py-2 !px-3" onClick={() => navigate(`/student/content/${content.id}`)}>Ver conteúdo</Button>
-            <ReadAloudButton label="Ouvir texto" />
-          </div>
-        </Card>
-      ))}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {contents.map(content => (
+          <Card key={content.id}>
+            <Badge variant="primary">{content.subject}</Badge>
+            <h3 className="font-medium text-lg mt-3">{content.title}</h3>
+            <p className="text-sm text-muted-foreground mb-4">{content.teacher} | {content.publishedAt}</p>
+            <div className="flex gap-2 flex-wrap">
+              <Button variant="outline" className="!w-auto !py-2 !px-3" onClick={() => navigate(`/student/content/${content.id}`)}>Ver conteúdo</Button>
+              <ReadAloudButton label="Ouvir texto" />
+            </div>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 };
@@ -114,7 +170,7 @@ export const StudentContentDetail = () => {
   }
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-20 md:pb-8">
       <header className="flex items-center gap-3"><BackButton to="/student/contents" /><div><h1 className="text-xl font-medium">{content.title}</h1><p className="text-muted-foreground">{content.subject} | {content.teacher}</p></div></header>
       <Card>
         <div className="flex justify-between items-start gap-3 mb-4"><h2 className="font-medium text-lg">Texto do conteúdo</h2><ReadAloudButton label="Ouvir texto" /></div>
@@ -139,17 +195,19 @@ export const StudentActivities = () => {
       {isLoading ? <LoadingState message="Carregando atividades..." /> : null}
       {error ? <ErrorState title="Não foi possível carregar as atividades" message={error} onRetry={reload} compact /> : null}
       {!isLoading && !error && !data?.[0].dados.length ? <EmptyState title="Nenhuma atividade disponível." message="As atividades publicadas para sua turma aparecerão aqui." /> : null}
-      {data?.[0].dados.map(activity => {
-        const entrega = entregas.find(item => (typeof item.atividadeId === 'string' ? item.atividadeId : item.atividadeId._id) === activity._id);
-        return <Card key={activity._id}>
-          <Badge variant={entrega?.status === 'corrigida' ? 'success' : entrega ? 'primary' : 'warning'}>{entrega?.status === 'corrigida' ? 'Corrigida' : entrega ? 'Entregue' : 'Pendente'}</Badge>
-          <h3 className="font-medium text-lg mt-3">{activity.titulo}</h3>
-          <p className="text-sm text-muted-foreground mb-4">{activity.disciplina} | Entrega: {new Date(activity.prazo).toLocaleDateString('pt-BR')}</p>
-          <Button onClick={() => navigate(entrega?.status === 'corrigida' ? '/student/feedback' : `/student/activity/${activity._id}`)} disabled={Boolean(entrega && entrega.status !== 'corrigida')}>
-            {entrega?.status === 'corrigida' ? 'Ver resultado' : entrega ? 'Atividade enviada' : 'Responder'}
-          </Button>
-        </Card>;
-      })}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {data?.[0].dados.map(activity => {
+          const entrega = entregas.find(item => (typeof item.atividadeId === 'string' ? item.atividadeId : item.atividadeId._id) === activity._id);
+          return <Card key={activity._id}>
+            <Badge variant={entrega?.status === 'corrigida' ? 'success' : entrega ? 'primary' : 'warning'}>{entrega?.status === 'corrigida' ? 'Corrigida' : entrega ? 'Entregue' : 'Pendente'}</Badge>
+            <h3 className="font-medium text-lg mt-3">{activity.titulo}</h3>
+            <p className="text-sm text-muted-foreground mb-4">{activity.disciplina} | Entrega: {new Date(activity.prazo).toLocaleDateString('pt-BR')}</p>
+            <Button onClick={() => navigate(entrega?.status === 'corrigida' ? '/student/feedback' : `/student/activity/${activity._id}`)} disabled={Boolean(entrega && entrega.status !== 'corrigida')}>
+              {entrega?.status === 'corrigida' ? 'Ver resultado' : entrega ? 'Atividade enviada' : 'Responder'}
+            </Button>
+          </Card>;
+        })}
+      </div>
     </div>
   );
 };
@@ -201,17 +259,21 @@ export const StudentFeedbackView = () => {
     return Promise.all(entregas.map(async entrega => ({ entrega, correcao: await getCorrecao(entrega._id) })));
   });
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-20 md:pb-8">
       <SectionHeader title="Feedback" subtitle="Notas, comentários e apoio da IA." />
       {isLoading ? <LoadingState message="Carregando correções..." /> : null}
       {error ? <ErrorState title="Não foi possível carregar os feedbacks" message={error} onRetry={reload} compact /> : null}
       {!isLoading && !error && !data?.length ? <EmptyState title="Nenhum feedback disponível." message="As correções publicadas pelos professores aparecerão aqui." /> : null}
-      {data?.map(({ entrega, correcao }) => { const atividade = typeof entrega.atividadeId === 'string' ? null : entrega.atividadeId; return <Card key={entrega._id}>
-        <Badge variant="primary">{atividade?.disciplina || 'Atividade'}</Badge>
-        <h2 className="font-medium text-lg mt-3">{atividade?.titulo || 'Atividade corrigida'}</h2>
-        <div className="flex items-end justify-between my-4"><div><p className="text-sm text-muted-foreground">Nota recebida</p><p className="text-4xl font-medium text-primary">{correcao.nota.toLocaleString('pt-BR')}</p></div><ReadAloudButton label="Ouvir feedback" /></div>
-        <p className="text-base"><strong>Comentário do professor:</strong> {correcao.feedback}</p>
-      </Card>; })}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {data?.map(({ entrega, correcao }) => {
+          const atividade = typeof entrega.atividadeId === 'string' ? null : entrega.atividadeId; return <Card key={entrega._id}>
+            <Badge variant="primary">{atividade?.disciplina || 'Atividade'}</Badge>
+            <h2 className="font-medium text-lg mt-3">{atividade?.titulo || 'Atividade corrigida'}</h2>
+            <div className="flex items-end justify-between my-4"><div><p className="text-sm text-muted-foreground">Nota recebida</p><p className="text-4xl font-medium text-primary">{correcao.nota.toLocaleString('pt-BR')}</p></div><ReadAloudButton label="Ouvir feedback" /></div>
+            <p className="text-base"><strong>Comentário do professor:</strong> {correcao.feedback}</p>
+          </Card>;
+        })}
+      </div>
     </div>
   );
 };
@@ -223,13 +285,14 @@ export const StudentProfile = () => {
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [profileError, setProfileError] = useState('');
   const { data: academic, isLoading: isLoadingAcademic, error: academicError, reload: reloadAcademic } = useAcademicData(() => Promise.all([getMeuBoletim(), listCronograma(), listDisciplinas()]));
-  const name = profile?.nome || user?.nome || student.name;
+  const name = profile?.nome || user?.nome || 'Aluno';
   const initials = name
     .split(' ')
     .map(part => part[0])
     .join('')
     .slice(0, 2)
     .toUpperCase();
+  const profileSubtitle = user?.email || (profile?.turma ? `Turma ${profile.turma}` : 'Perfil do aluno');
 
   const handleLogout = () => {
     logout();
@@ -262,48 +325,56 @@ export const StudentProfile = () => {
   }, []);
 
   return (
-  <div className="space-y-6 pb-20">
-    <ProfileHeader initials={initials || student.avatar} name={name} subtitle={user?.email || `Turma ${student.className} | Nascimento: ${student.birthDate}`} />
-    <Button variant="outline" onClick={handleLogout}>Sair</Button>
-    {isLoadingProfile ? <LoadingState message="Carregando perfil..." /> : null}
-    {profileError ? <ErrorState title="Não foi possível carregar o perfil" message={profileError} compact /> : null}
-    <Card>
-      <h2 className="font-medium text-lg mb-2">Dados do aluno</h2>
-      <p className="text-muted-foreground">Matrícula: {profile?.matricula || 'Não informada'}</p>
-      <p className="text-muted-foreground">Turma: {profile?.turma || 'Não informada'}</p>
-      <p className="text-muted-foreground">Nascimento: {profile?.dataNascimento ? new Date(profile.dataNascimento).toLocaleDateString('pt-BR') : 'Não informado'}</p>
-    </Card>
-    {!isLoadingProfile && isLoadingAcademic ? <LoadingState message="Carregando dados acadêmicos..." /> : null}
-    {!profileError && academicError ? <ErrorState title="Não foi possível carregar os dados acadêmicos" message={academicError} onRetry={reloadAcademic} compact /> : null}
-    <Card><h2 className="font-medium text-lg mb-2">Matérias em andamento</h2><p className="text-muted-foreground">{academic?.[2].dados.map(item => item.nome).join(', ') || 'Nenhuma matéria vinculada.'}</p></Card>
-    <Card>
-      <div className="flex items-center gap-2 mb-4"><FileText size={18} className="text-primary" /><h2 className="font-medium text-lg">Boletim</h2></div>
-      <div className="space-y-3">
-        {academic?.[0].notas.map((item, index) => (
-          <div key={`${item.disciplina}-${item.periodo}-${index}`} className="rounded-xl bg-input-background p-3">
-            <div className="flex justify-between gap-3"><strong>{item.disciplina}</strong><Badge variant={item.nota >= 7 ? 'success' : item.nota >= 5 ? 'warning' : 'primary'}>{item.periodo}</Badge></div>
-            <p className="text-sm text-muted-foreground">Nota {item.nota.toLocaleString('pt-BR')}</p>
-            {item.observacao ? <p className="text-sm text-muted-foreground">{item.observacao}</p> : null}
-          </div>
-        ))}
+    <div className="space-y-6 pb-20 md:pb-8">
+      <div className="grid gap-6 xl:grid-cols-[1.2fr,0.8fr] xl:items-start">
+        <div className="space-y-6">
+          <ProfileHeader initials={initials || 'AL'} name={name} subtitle={profileSubtitle} />
+          <Card>
+            <h2 className="font-medium text-lg mb-2">Dados do aluno</h2>
+            <p className="text-muted-foreground">Matrícula: {profile?.matricula || 'Não informada'}</p>
+            <p className="text-muted-foreground">Turma: {profile?.turma || 'Não informada'}</p>
+            <p className="text-muted-foreground">Nascimento: {profile?.dataNascimento ? new Date(profile.dataNascimento).toLocaleDateString('pt-BR') : 'Não informado'}</p>
+          </Card>
+        </div>
+        <div className="xl:sticky xl:top-24">
+          <Button variant="outline" onClick={handleLogout}>Sair</Button>
+        </div>
       </div>
-    </Card>
-    <Card>
-      <div className="flex items-center gap-2 mb-4"><CalendarDays size={18} className="text-primary" /><h2 className="font-medium text-lg">Cronograma do dia</h2></div>
-      <div className="space-y-3">{academic?.[1].dados.map(item => <div key={item._id} className="rounded-xl bg-input-background p-3"><strong>{new Date(item.inicio).toLocaleString('pt-BR')} | {item.titulo}</strong><p className="text-sm text-muted-foreground">{item.disciplina || item.tipo} | Turma {item.turma}</p></div>)}</div>
-    </Card>
-    <Card>
-      <div className="flex items-center gap-2 mb-4"><UserRound size={18} className="text-primary" /><h2 className="font-medium text-lg">Professores por matéria</h2></div>
-      <Badge variant="warning">Demonstração visual — integração pendente</Badge>
-      <div className="space-y-3">
-        {academic?.[2].dados.map(item => {
-          const professor = typeof item.professorId === 'string' ? null : item.professorId;
-          return <div key={item._id} className="flex items-center justify-between rounded-xl bg-input-background p-3 gap-3">
-            <div className="flex items-center gap-3"><span className="w-10 h-10 rounded-full bg-primary-light text-primary flex items-center justify-center text-sm">{professor?.nome?.slice(0, 2).toUpperCase() || 'PR'}</span><div><strong>{item.nome}</strong><p className="text-sm text-muted-foreground">{professor?.nome || 'Professor não informado'}</p></div></div>
+      {isLoadingProfile ? <LoadingState message="Carregando perfil..." /> : null}
+      {profileError ? <ErrorState title="Não foi possível carregar o perfil" message={profileError} compact /> : null}
+      {!isLoadingProfile && isLoadingAcademic ? <LoadingState message="Carregando dados acadêmicos..." /> : null}
+      {!profileError && academicError ? <ErrorState title="Não foi possível carregar os dados acadêmicos" message={academicError} onRetry={reloadAcademic} compact /> : null}
+      <div className="grid gap-6 xl:grid-cols-2">
+        <Card><h2 className="font-medium text-lg mb-2">Matérias em andamento</h2><p className="text-muted-foreground">{academic?.[2].dados.map(item => item.nome).join(', ') || 'Nenhuma matéria vinculada.'}</p></Card>
+        <Card>
+          <div className="flex items-center gap-2 mb-4"><FileText size={18} className="text-primary" /><h2 className="font-medium text-lg">Boletim</h2></div>
+          <div className="space-y-3">
+            {academic?.[0].notas.map((item, index) => (
+              <div key={`${item.disciplina}-${item.periodo}-${index}`} className="rounded-xl bg-input-background p-3">
+                <div className="flex justify-between gap-3"><strong>{item.disciplina}</strong><Badge variant={item.nota >= 7 ? 'success' : item.nota >= 5 ? 'warning' : 'primary'}>{item.periodo}</Badge></div>
+                <p className="text-sm text-muted-foreground">Nota {item.nota.toLocaleString('pt-BR')}</p>
+                {item.observacao ? <p className="text-sm text-muted-foreground">{item.observacao}</p> : null}
+              </div>
+            ))}
           </div>
-        })}
+        </Card>
       </div>
-    </Card>
-  </div>
+      <Card>
+        <div className="flex items-center gap-2 mb-4"><CalendarDays size={18} className="text-primary" /><h2 className="font-medium text-lg">Cronograma do dia</h2></div>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{academic?.[1].dados.map(item => <div key={item._id} className="rounded-xl bg-input-background p-3"><strong>{new Date(item.inicio).toLocaleString('pt-BR')} | {item.titulo}</strong><p className="text-sm text-muted-foreground">{item.disciplina || item.tipo} | Turma {item.turma}</p></div>)}</div>
+      </Card>
+      <Card>
+        <div className="flex items-center gap-2 mb-4"><UserRound size={18} className="text-primary" /><h2 className="font-medium text-lg">Professores por matéria</h2></div>
+        {!academic?.[2].dados.length ? <p className="text-sm text-muted-foreground mb-3">Nenhuma disciplina vinculada no momento.</p> : null}
+        <div className="grid gap-3 md:grid-cols-2">
+          {academic?.[2].dados.map(item => {
+            const professor = typeof item.professorId === 'string' ? null : item.professorId;
+            return <div key={item._id} className="flex items-center justify-between rounded-xl bg-input-background p-3 gap-3">
+              <div className="flex items-center gap-3"><span className="w-10 h-10 rounded-full bg-primary-light text-primary flex items-center justify-center text-sm">{professor?.nome?.slice(0, 2).toUpperCase() || 'PR'}</span><div><strong>{item.nome}</strong><p className="text-sm text-muted-foreground">{professor?.nome || 'Professor não informado'}</p></div></div>
+            </div>
+          })}
+        </div>
+      </Card>
+    </div>
   );
 };
