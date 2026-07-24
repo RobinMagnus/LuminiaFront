@@ -32,6 +32,7 @@ export const postItem: ContentItem = {
   related: ['Exercícios de revisão'],
   visibility: 'todos',
   tags: ['fisica'],
+  videoLinks: [],
 };
 
 export const alunoProfile: Aluno = {

@@ -12,6 +12,11 @@ export const AIFeedbackCard = ({
   relatedContent: string[];
 }) => {
   const [level, setLevel] = useState<'simples' | 'resumida' | 'detalhada'>('resumida');
+  const displayedFeedback = level === 'simples'
+    ? "Você confundiu a fórmula principal, mas a ideia inicial estava no caminho. Revise com calma e tente novamente."
+    : level === 'detalhada'
+      ? `${feedback} Primeiro identifique a fórmula, depois substitua os valores e isole a variável. A IA apoia o estudo, mas a decisão final da nota continua com o professor.`
+      : feedback;
 
   return (
     <Card className="border-primary/20 bg-primary-light/10 relative overflow-hidden">
@@ -36,13 +41,11 @@ export const AIFeedbackCard = ({
       </div>
 
       <div className="text-foreground text-base leading-relaxed mb-4" aria-live="polite">
-        {level === 'simples' && "Você confundiu a fórmula principal, mas a ideia inicial estava no caminho. Revise com calma e tente novamente."}
-        {level === 'resumida' && feedback}
-        {level === 'detalhada' && `${feedback} Primeiro identifique a fórmula, depois substitua os valores e isole a variável. A IA apoia o estudo, mas a decisão final da nota continua com o professor.`}
+        {displayedFeedback}
       </div>
 
       <div className="mb-6">
-        <ReadAloudButton label="Ouvir feedback" />
+        <ReadAloudButton label="Ouvir feedback" text={displayedFeedback} />
       </div>
 
       <div className="mb-6 bg-card p-4 rounded-xl border border-border">
@@ -51,7 +54,7 @@ export const AIFeedbackCard = ({
             <Target size={18} className="text-accent" aria-hidden="true" />
             <span>Pontos para estudar</span>
           </div>
-          <ReadAloudButton label="Ouvir texto" className="!bg-transparent !border-none !p-1 hover:!bg-muted" />
+          <ReadAloudButton text={pointsToStudy.join('. ')} label="Ouvir texto" className="!bg-transparent !border-none !p-1 hover:!bg-muted" />
         </div>
         <ul className="space-y-3">
           {pointsToStudy.map(point => (
@@ -68,7 +71,7 @@ export const AIFeedbackCard = ({
             <BookOpen size={18} className="text-secondary" aria-hidden="true" />
             <span>Conteúdos relacionados</span>
           </div>
-          <ReadAloudButton label="Ouvir texto" className="!bg-transparent !border-none !p-1 hover:!bg-muted" />
+          <ReadAloudButton text={relatedContent.join('. ')} label="Ouvir texto" className="!bg-transparent !border-none !p-1 hover:!bg-muted" />
         </div>
         <div className="space-y-3">
           {relatedContent.map(content => (

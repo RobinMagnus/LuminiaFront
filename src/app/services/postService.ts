@@ -9,10 +9,12 @@ export type ContentItem = {
   className: string;
   teacher: string;
   publishedAt: string;
+  publishedAtISO?: string;
   text: string;
   related: string[];
   visibility: 'todos' | 'alunos' | 'professores';
   tags: string[];
+  videoLinks: string[];
 };
 
 export type PostPayload = {
@@ -20,6 +22,7 @@ export type PostPayload = {
   conteudo: string;
   disciplina?: string;
   tags?: string[];
+  videoLinks?: string[];
   visivelPara?: 'todos' | 'alunos' | 'professores';
 };
 
@@ -59,10 +62,12 @@ function mapPost(post: Post): ContentItem {
     className: 'Todas as turmas',
     teacher: post.autor?.nome || 'Professor',
     publishedAt: formatDate(post.createdAt),
+    publishedAtISO: post.createdAt,
     text: post.conteudo,
     related: post.tags?.length ? post.tags : ['Material complementar'],
     visibility: post.visivelPara || 'todos',
     tags: post.tags || [],
+    videoLinks: post.videoLinks || [],
   };
 }
 
@@ -104,4 +109,18 @@ export function deletePost(id: string) {
   return apiFetch<{ mensagem: string }>(`/posts/${id}`, {
     method: 'DELETE',
   });
+}
+
+export type LeituraPost = { _id: string; postId: string; lidoEm: string };
+
+export function listMinhasLeituras() {
+  return apiFetch<LeituraPost[]>('/posts/leituras/me');
+}
+
+export function marcarPostComoLido(postId: string) {
+  return apiFetch<{ mensagem: string; leitura: LeituraPost }>(`/posts/${postId}/leitura`, { method: 'PUT' });
+}
+
+export function marcarPostComoNaoLido(postId: string) {
+  return apiFetch<{ mensagem: string }>(`/posts/${postId}/leitura`, { method: 'DELETE' });
 }

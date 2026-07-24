@@ -9,9 +9,14 @@ Já estão implementados:
 - login, restauração de sessão, logout e proteção de rotas por perfil;
 - áreas responsivas de professor e aluno;
 - conteúdos e comentários com regras de autoria e permissão;
+- conteúdos textuais com seleção de matéria e links de vídeo;
 - atividades, entregas e correções;
+- atividades estruturadas com múltipla escolha, resposta curta e redação;
+- criação de atividades com matéria e turma selecionadas por vínculo acadêmico;
 - turmas, disciplinas, boletim e cronograma;
 - perfis de aluno e professor;
+- foto opcional nos perfis de aluno e professor;
+- leitura em voz alta pelo sintetizador disponível no navegador;
 - estados de carregamento, vazio, erro e sucesso;
 - testes automatizados e build de produção.
 
@@ -19,7 +24,6 @@ Ainda são simulados ou planejados:
 
 - feedback pedagógico gerado por IA;
 - adaptação automática do feedback por nível;
-- síntese de voz para os controles de leitura;
 - endpoint agregado para reduzir as requisições dos dashboards.
 
 ## Tecnologias
@@ -202,7 +206,7 @@ O workflow `frontend-ci.yml` roda em pushes e pull requests para `develop` e `ma
 ## Limitações conhecidas
 
 - os recursos de IA ainda não possuem integração com um provedor;
-- os botões de leitura não executam síntese de voz;
+- as vozes disponíveis e a qualidade da leitura dependem do navegador e do sistema operacional;
 - os dashboards agregam dados por meio de múltiplas requisições;
 - o projeto ainda não possui lint dedicado;
 - o erro de rede durante a restauração da sessão encerra a sessão por segurança.

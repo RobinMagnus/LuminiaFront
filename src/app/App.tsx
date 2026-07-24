@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigate, RouterProvider, createBrowserRouter, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Bell, BookOpen, CheckSquare, FileText, Home, User } from 'lucide-react';
+import { Bell, BookOpen, CalendarDays, CheckSquare, FileText, Home, User } from 'lucide-react';
 import { LoginScreen } from './components/LoginScreen';
 import {
   TeacherActivities,
@@ -14,6 +14,7 @@ import {
   TeacherCorrectionsList,
   TeacherCreateActivity,
   TeacherDashboard,
+  TeacherSchedule,
   TeacherProfile,
 } from './components/TeacherScreens';
 import {
@@ -34,6 +35,7 @@ const NAV_ITEMS = {
     { id: 'home', icon: Home, label: 'Início', path: '/teacher' },
     { id: 'activities', icon: FileText, label: 'Atividades', path: '/teacher/activities' },
     { id: 'contents', icon: BookOpen, label: 'Conteúdos', path: '/teacher/contents' },
+    { id: 'schedule', icon: CalendarDays, label: 'Agenda', path: '/teacher/schedule' },
     { id: 'corrections', icon: CheckSquare, label: 'Correções', path: '/teacher/corrections' },
     { id: 'profile', icon: User, label: 'Perfil', path: '/teacher/profile' },
   ],
@@ -53,7 +55,7 @@ const BottomNav = ({ role }: { role: 'teacher' | 'student' }) => {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border px-4 pb-safe pt-2 md:hidden" aria-label="Navegação principal">
-      <div className="flex justify-between items-center h-14">
+      <div className="flex items-center h-14 gap-1 overflow-x-auto">
         {tabs.map(tab => {
           const isActive = location.pathname === tab.path || (tab.path !== `/${role}` && location.pathname.startsWith(tab.path));
           return (
@@ -61,7 +63,7 @@ const BottomNav = ({ role }: { role: 'teacher' | 'student' }) => {
               key={tab.id}
               onClick={() => navigate(tab.path)}
               aria-current={isActive ? 'page' : undefined}
-              className={`flex flex-col items-center justify-center min-w-14 gap-1 transition-colors focus:outline-none focus:ring-2 focus:ring-primary rounded-lg ${isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`flex flex-1 flex-col items-center justify-center min-w-14 gap-1 transition-colors focus:outline-none focus:ring-2 focus:ring-primary rounded-lg ${isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
             >
               <tab.icon size={22} className={isActive ? 'stroke-[2.5px]' : 'stroke-2'} aria-hidden="true" />
               <span className="text-[10px] font-medium">{tab.label}</span>
@@ -200,6 +202,7 @@ const router = createBrowserRouter([
       { path: 'activity/:id', element: <TeacherActivityDetail /> },
       { path: 'create', element: <TeacherCreateActivity /> },
       { path: 'contents', element: <TeacherContents /> },
+      { path: 'schedule', element: <TeacherSchedule /> },
       { path: 'content/new', element: <TeacherContentForm /> },
       { path: 'content/:id/edit', element: <TeacherContentForm /> },
       { path: 'content/:id', element: <TeacherContentDetail /> },

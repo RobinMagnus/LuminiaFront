@@ -21,6 +21,7 @@ export type Aluno = {
   userId: UsuarioPopulado;
   nome: string;
   dataNascimento?: string;
+  fotoPerfil?: string;
   turma?: string;
   matricula: string;
   boletim?: Array<{
@@ -36,6 +37,7 @@ export type Professor = {
   userId: UsuarioPopulado;
   nome: string;
   dataNascimento?: string;
+  fotoPerfil?: string;
   materias?: string[];
   turmas?: string[];
 };
@@ -52,6 +54,7 @@ export type Post = {
     role?: Role;
   };
   tags?: string[];
+  videoLinks?: string[];
   visivelPara: 'todos' | 'alunos' | 'professores';
   createdAt?: string;
   updatedAt?: string;
@@ -87,6 +90,18 @@ export type Paginacao = {
 
 export type ListaPaginada<T> = { dados: T[]; paginacao: Paginacao };
 
+export type TipoQuestao = 'multipla_escolha' | 'resposta_curta' | 'redacao';
+
+export type Questao = {
+  _id?: string;
+  tipo: TipoQuestao;
+  enunciado: string;
+  orientacao?: string;
+  obrigatoria: boolean;
+  alternativas: string[];
+  limiteCaracteres?: number;
+};
+
 export type Atividade = {
   _id: string;
   titulo: string;
@@ -96,14 +111,18 @@ export type Atividade = {
   professorId: string | Pick<UsuarioPopulado, '_id' | 'nome' | 'email'>;
   prazo: string;
   status: 'rascunho' | 'publicada' | 'encerrada';
+  questoes: Questao[];
   createdAt?: string;
 };
+
+export type RespostaQuestao = { questaoId: string; resposta: string };
 
 export type Entrega = {
   _id: string;
   atividadeId: string | Pick<Atividade, '_id' | 'titulo' | 'disciplina' | 'turma' | 'prazo'>;
   alunoId: string | Pick<UsuarioPopulado, '_id' | 'nome' | 'email'>;
   resposta: string;
+  respostas?: RespostaQuestao[];
   status: 'entregue' | 'corrigida';
   entregueEm: string;
 };
@@ -140,7 +159,7 @@ export type Turma = {
   turno: 'manha' | 'tarde' | 'noite' | 'integral';
   descricao?: string;
   ativa: boolean;
-  professorId: string | Pick<UsuarioPopulado, '_id' | 'nome' | 'email'>;
+  professorIds: Array<string | Pick<UsuarioPopulado, '_id' | 'nome' | 'email'>>;
 };
 
 export type Disciplina = {

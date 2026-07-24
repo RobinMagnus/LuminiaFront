@@ -13,6 +13,7 @@ const getPostMock = vi.fn();
 const createPostMock = vi.fn();
 const updatePostMock = vi.fn();
 const deletePostMock = vi.fn();
+const listReadingsMock = vi.fn();
 let authUser: any = professorUser;
 
 vi.mock('react-router-dom', async importOriginal => {
@@ -36,6 +37,24 @@ vi.mock('../services/postService', () => ({
   createPost: (payload: unknown) => createPostMock(payload),
   updatePost: (id: string, payload: unknown) => updatePostMock(id, payload),
   deletePost: (id: string) => deletePostMock(id),
+  listMinhasLeituras: () => listReadingsMock(),
+  marcarPostComoLido: vi.fn(),
+  marcarPostComoNaoLido: vi.fn(),
+}));
+
+vi.mock('../services/academicService', () => ({
+  listDisciplinas: () => Promise.resolve({
+    dados: [{
+      _id: 'disciplina-1',
+      codigo: 'FIS',
+      nome: 'Física',
+      cargaHoraria: 60,
+      turmaIds: [],
+      ativa: true,
+      professorId: 'professor-1',
+    }],
+    paginacao: { pagina: 1, limite: 100, total: 1, totalPaginas: 1, itens: 1 },
+  }),
 }));
 
 function renderWithRouter(ui: React.ReactElement, route = '/') {
@@ -62,6 +81,7 @@ describe('posts e conteúdos', () => {
     createPostMock.mockResolvedValue({ mensagem: 'Post criado com sucesso.', post: postItem });
     updatePostMock.mockResolvedValue({ mensagem: 'Post atualizado com sucesso.', post: postItem });
     deletePostMock.mockResolvedValue({ mensagem: 'Post excluído com sucesso.' });
+    listReadingsMock.mockResolvedValue([]);
     vi.spyOn(window, 'confirm').mockReturnValue(true);
   });
 
@@ -69,7 +89,7 @@ describe('posts e conteúdos', () => {
     authUser = alunoUser;
     renderWithRouter(<StudentContents />);
 
-    expect(screen.getByRole('status')).toHaveTextContent('Carregando conteúdos...');
+    expect(screen.getByText('Carregando conteúdos...')).toBeInTheDocument();
     expect(await screen.findByText('Leis de Newton')).toBeInTheDocument();
     expect(screen.getByText('Professor Teste | 09/07')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /novo conteúdo/i })).not.toBeInTheDocument();
